@@ -1,0 +1,11 @@
+Copyright 2023 University College London (UCL)
+
+This software product is developed for the Emission Tomography Standardization
+Initiative (ETSI), https://etisinitiative.org.
+
+Main contributors:
+Kris Thielemans (UCL)
+
+### Apache License ###
+
+All documents are covered by the Apache 2.0 license, unless otherwise specified.

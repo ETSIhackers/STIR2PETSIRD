@@ -1,0 +1,7 @@
+**/build/
+**/__pycache__/
+
+# Common editor backups
+~$*
+*~
+*.bak

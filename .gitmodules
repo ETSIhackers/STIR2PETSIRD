@@ -1,0 +1,3 @@
+[submodule "PETSIRD"]
+	path = PETSIRD
+	url = https://github.com/ETSInitiative/PRDdefinition
