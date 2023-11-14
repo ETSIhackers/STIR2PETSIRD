@@ -16,6 +16,58 @@
 
 #include "STIR_PETSIRD_convertor.h"
 
+// single ring as example
+prd::ScannerInformation
+get_scanner_info(const stir::Scanner& stir_scanner)
+{
+  float radius = stir_scanner.get_inner_ring_radius();
+
+  std::vector<float> angles;
+  for (int i = 0; i < stir_scanner.get_num_detectors_per_ring(); ++i)
+    {
+      angles.push_back(static_cast<float>(2 * M_PI * i / stir_scanner.get_num_detectors_per_ring()));
+    }
+  std::vector<prd::Detector> detectors;
+  int detector_id = 0;
+  int num_rings = stir_scanner.get_num_rings();
+  for (int ring = 0; ring < num_rings; ++ring)
+  {
+    for (auto angle : angles)
+    {
+      // Create a new detector
+      prd::Detector d;
+      d.x = radius * std::sin(angle);
+      d.y = radius * std::cos(angle);
+      d.z = (float)ring;
+      d.id = detector_id++;
+      detectors.push_back(d);
+    }
+  }
+
+  typedef yardl::NDArray<float, 1> FArray1D;
+  // TOF info (in mm)
+  // Variables in capitals are to do to get from scanner.
+  long unsigned int NUMBER_OF_TOF_BINS = 1;
+  long unsigned int NUMBER_OF_ENERGY_BINS = 1;
+  float TOF_RESOLUTION = -1.0;
+  FArray1D::shape_type tof_bin_edges_shape = { NUMBER_OF_TOF_BINS + 1 };
+  FArray1D tof_bin_edges(tof_bin_edges_shape);
+  for (std::size_t i = 0; i < tof_bin_edges.size(); ++i)
+    tof_bin_edges[i] = (i - NUMBER_OF_TOF_BINS / 2.F) / NUMBER_OF_TOF_BINS * 2 * radius;
+  FArray1D::shape_type energy_bin_edges_shape = { NUMBER_OF_ENERGY_BINS + 1 };
+  FArray1D energy_bin_edges(energy_bin_edges_shape);
+  for (std::size_t i = 0; i < energy_bin_edges.size(); ++i)
+    energy_bin_edges[i] = 430.F + i * (650.F - 430.F) / NUMBER_OF_ENERGY_BINS;
+  prd::ScannerInformation scanner_info;
+  scanner_info.detectors = detectors;
+  scanner_info.tof_bin_edges = tof_bin_edges;
+  scanner_info.tof_resolution = TOF_RESOLUTION; // in mm
+  scanner_info.energy_bin_edges = energy_bin_edges;
+  scanner_info.energy_resolution_at_511 = stir_scanner.get_energy_resolution();    // as fraction of 511
+  scanner_info.listmode_time_block_duration = 1.F; // ms
+  return scanner_info;
+}
+
 void
 MyClass::process_data()
 {
@@ -25,6 +77,7 @@ MyClass::process_data()
   shared_ptr<ListRecord> record_sptr = lm_data_ptr->get_empty_record_sptr();
   ListRecord& record = *record_sptr;
 
+  prd::ScannerInformation scanner_info = get_scanner_info(*lm_data_ptr->get_scanner_ptr());
   double current_time = 0.0;
 
   prd::hdf5::PrdExperimentWriter writer(this->out_filename);
