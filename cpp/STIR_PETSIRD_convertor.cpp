@@ -74,8 +74,8 @@ get_header()
   prd::Subject subject;
   subject.id = "123456";
   prd::Institution institution;
-  institution.name = "Diamond Light Source";
-  institution.address = "Harwell Science and Innovation Campus, Didcot, Oxfordshire, OX11 0DE, UK";
+  institution.name = "ESTI Hackathon";
+  institution.address = "Vancouver, Canada";
   prd::ExamInformation exam_info;
   exam_info.subject = subject;
   exam_info.institution = institution;
@@ -99,6 +99,7 @@ MyClass::process_data()
   double current_time = 0.0;
 
   prd::hdf5::PrdExperimentWriter writer(this->out_filename);
+  writer.WriteHeader(header_info);
   prd::TimeBlock time_block;
   std::vector<prd::CoincidenceEvent> prompts_this_block;
 
@@ -141,6 +142,8 @@ MyClass::process_data()
           prompts_this_block.push_back(e);
         } // end of spatial event processing
     }     // end of while loop over all events
+    writer.EndTimeBlocks();
+    writer.Close();
 }
 
 int
