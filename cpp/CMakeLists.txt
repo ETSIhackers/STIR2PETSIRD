@@ -18,3 +18,4 @@ target_link_libraries(STIR_PETSIRD_convertor PUBLIC prd_generated ${STIR_LIBRARI
 install(TARGETS STIR_PETSIRD_convertor DESTINATION bin)
 
 add_subdirectory(../PETSIRD/cpp/generated PETSIRD_generated)
+include_directories(../PETSIRD/cpp/generated)
