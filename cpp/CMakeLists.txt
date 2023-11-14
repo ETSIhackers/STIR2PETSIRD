@@ -14,7 +14,7 @@ find_package(STIR)
 # Example lines for a new executable
 add_executable(STIR_PETSIRD_convertor STIR_PETSIRD_convertor.cpp)
 
-target_link_libraries(STIR_PETSIRD_convertor PUBLIC prd_generated ${STIR_LIBRARIES})
+target_link_libraries(STIR_PETSIRD_convertor PUBLIC prd_generated ${STIR_LIBRARIES} ${STIR_REGISTRIES})
 install(TARGETS STIR_PETSIRD_convertor DESTINATION bin)
 
 add_subdirectory(../PETSIRD/cpp/generated PETSIRD_generated)

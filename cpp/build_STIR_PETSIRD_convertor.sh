@@ -2,7 +2,7 @@
 # FILEPATH: /workspaces/STIR2PETSIRD/cpp/build.sh
 
 # Utility script to build STIR_PETSIRD_convertor in the cpp dir
-STIR_DIR="/workspaces/STIR2PETSIRD/stir/install"
+STIR_DIR="/workspaces/STIR2PETSIRD/stir/install/lib/cmake/"
 PETSIRD_DIR="/workspaces/STIR2PETSIRD/cpp"
 cpp_dir="/workspaces/STIR2PETSIRD/cpp"
 
