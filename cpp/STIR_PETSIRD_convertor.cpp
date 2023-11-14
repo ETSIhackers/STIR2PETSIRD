@@ -68,6 +68,22 @@ get_scanner_info(const stir::Scanner& stir_scanner)
   return scanner_info;
 }
 
+prd::Header
+get_header()
+{
+  prd::Subject subject;
+  subject.id = "123456";
+  prd::Institution institution;
+  institution.name = "Diamond Light Source";
+  institution.address = "Harwell Science and Innovation Campus, Didcot, Oxfordshire, OX11 0DE, UK";
+  prd::ExamInformation exam_info;
+  exam_info.subject = subject;
+  exam_info.institution = institution;
+  prd::Header header;
+  header.exam = exam_info;
+  return header;
+}
+
 void
 MyClass::process_data()
 {
@@ -78,6 +94,8 @@ MyClass::process_data()
   ListRecord& record = *record_sptr;
 
   prd::ScannerInformation scanner_info = get_scanner_info(*lm_data_ptr->get_scanner_ptr());
+  prd::Header header_info = get_header();
+  header_info.scanner = scanner_info;
   double current_time = 0.0;
 
   prd::hdf5::PrdExperimentWriter writer(this->out_filename);
