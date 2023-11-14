@@ -5,6 +5,10 @@ conda install boost
 
 STIR_DIR=/workspaces/STIR2PETSIRD/stir
 
+if [ ! -d "$STIR_DIR" ]; then
+    mkdir -p "$STIR_DIR"
+fi
+
 cd ${STIR_DIR}
 git clone https://github.com/UCL/STIR.git
 mkdir -p build install
