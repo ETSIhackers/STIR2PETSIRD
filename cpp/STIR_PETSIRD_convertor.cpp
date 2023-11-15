@@ -4,7 +4,6 @@
 #include <memory>
 #include <filesystem>
 
-#include "STIR_PETSIRD_convertor.h"
 #include "stir/listmode/ListModeData.h"
 #include "stir/listmode/ListEvent.h"
 #include "stir/listmode/ListRecord.h"
@@ -13,7 +12,7 @@
 #include "stir/Succeeded.h"
 #include "stir/IO/read_from_file.h"
 #include "stir/error.h"
-#include "hdf5/protocols.h"
+#include "binary/protocols.h"
 
 #include "STIR_PETSIRD_convertor.h"
 
@@ -87,12 +86,12 @@ void
 STIRPETSIRDConvertor::process_data()
 {
   using namespace stir;
-  shared_ptr<ListModeData> lm_data_ptr(read_from_file<ListModeData>(this->in_filename));
-  const auto& scanner = *lm_data_ptr->get_proj_data_info_sptr()->get_scanner_sptr();
-  shared_ptr<ListRecord> record_sptr = lm_data_ptr->get_empty_record_sptr();
-  ListRecord& record = *record_sptr;
+  auto lm_data_ptr = read_from_file<ListModeData>(this->in_filename);
+  const auto& stir_scanner = *lm_data_ptr->get_proj_data_info_sptr()->get_scanner_ptr();
+  auto record_sptr = lm_data_ptr->get_empty_record_sptr();
+  auto& record = *record_sptr;
 
-  prd::ScannerInformation scanner_info = get_scanner_info(*lm_data_ptr->get_scanner_ptr());
+  prd::ScannerInformation scanner_info = get_scanner_info(stir_scanner);
   prd::Header header_info = get_header();
   header_info.scanner = scanner_info;
   double current_time = 0.0;
@@ -100,7 +99,7 @@ STIRPETSIRDConvertor::process_data()
   if (std::filesystem::exists(this->out_filename))
       std::filesystem::remove(this->out_filename);
 
-  prd::hdf5::PrdExperimentWriter writer(this->out_filename);
+  prd::binary::PrdExperimentWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
   prd::TimeBlock time_block;
   std::vector<prd::CoincidenceEvent> prompts_this_block;
@@ -135,9 +134,9 @@ STIRPETSIRDConvertor::process_data()
 
           prd::CoincidenceEvent e;
           e.detector_1_id
-              = dp_pair.pos1().tangential_coord() + dp_pair.pos1().axial_coord() * scanner.get_num_detectors_per_ring();
+              = dp_pair.pos1().tangential_coord() + dp_pair.pos1().axial_coord() * stir_scanner.get_num_detectors_per_ring();
           e.detector_2_id
-              = dp_pair.pos2().tangential_coord() + dp_pair.pos2().axial_coord() * scanner.get_num_detectors_per_ring();
+              = dp_pair.pos2().tangential_coord() + dp_pair.pos2().axial_coord() * stir_scanner.get_num_detectors_per_ring();
           e.energy_1_idx = 0;
           e.energy_2_idx = 0;
           e.tof_idx = 0;
