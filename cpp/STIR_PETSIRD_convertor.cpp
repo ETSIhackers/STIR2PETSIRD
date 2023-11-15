@@ -2,6 +2,7 @@
 #include <string>
 #include <fstream>
 #include <memory>
+#include <filesystem>
 
 #include "STIR_PETSIRD_convertor.h"
 #include "stir/listmode/ListModeData.h"
@@ -16,17 +17,15 @@
 
 #include "STIR_PETSIRD_convertor.h"
 
-// single ring as example
+// Convert from STIR scanner to PRD scanner info (for now, just cylindrical non-TOF scanners)
 prd::ScannerInformation
 get_scanner_info(const stir::Scanner& stir_scanner)
 {
   float radius = stir_scanner.get_inner_ring_radius();
-
   std::vector<float> angles;
   for (int i = 0; i < stir_scanner.get_num_detectors_per_ring(); ++i)
-    {
       angles.push_back(static_cast<float>(2 * M_PI * i / stir_scanner.get_num_detectors_per_ring()));
-    }
+
   std::vector<prd::Detector> detectors;
   int detector_id = 0;
   int num_rings = stir_scanner.get_num_rings();
@@ -85,7 +84,7 @@ get_header()
 }
 
 void
-MyClass::process_data()
+STIRPETSIRDConvertor::process_data()
 {
   using namespace stir;
   shared_ptr<ListModeData> lm_data_ptr(read_from_file<ListModeData>(this->in_filename));
@@ -97,6 +96,9 @@ MyClass::process_data()
   prd::Header header_info = get_header();
   header_info.scanner = scanner_info;
   double current_time = 0.0;
+
+  if (std::filesystem::exists(this->out_filename))
+      std::filesystem::remove(this->out_filename);
 
   prd::hdf5::PrdExperimentWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
@@ -155,7 +157,7 @@ main(int argc, char* argv[])
       return 1;
     }
 
-  MyClass my_class(argv[1], argv[2]);
+  STIRPETSIRDConvertor my_class(argv[1], argv[2]);
   my_class.process_data();
 
   return 0;
