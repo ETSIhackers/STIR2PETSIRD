@@ -85,6 +85,10 @@ get_header()
 void
 STIRPETSIRDConvertor::process_data()
 {
+  std::cout << "Converting STIR listmode data to PRD format...\n"
+        << "\t- Input file: " << this->in_filename << "\n"
+        << "\t- Output file: " << this->out_filename << "\n" << std::endl;
+
   using namespace stir;
   auto lm_data_ptr = read_from_file<ListModeData>(this->in_filename);
   const auto& stir_scanner = *lm_data_ptr->get_proj_data_info_sptr()->get_scanner_ptr();
@@ -123,12 +127,7 @@ STIRPETSIRDConvertor::process_data()
         {
           // assume it's a cylindrical scanner for now. will need to change later.
           auto& event = dynamic_cast<CListEventCylindricalScannerWithDiscreteDetectors const&>(record.event());
-          /*
-            auto lor = record.event().get_LOR();
-            lor.p1().x();
-            lor.p1().y();
-            lor.p2();
-          */
+
           DetectionPositionPair<> dp_pair;
           event.get_detection_position(dp_pair);
 
@@ -152,7 +151,8 @@ main(int argc, char* argv[])
 {
   if (argc != 3)
     {
-      std::cerr << "Usage: " << argv[0] << " <output_filename> <input_filename>\n";
+      std::cout << "Converts list mode data from STIR to PRD format.\n"
+                   "Usage: " << argv[0] << " <output_filename> <input_filename>\n";
       return 1;
     }
 

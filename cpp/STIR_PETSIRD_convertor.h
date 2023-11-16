@@ -11,7 +11,9 @@ public:
     void process_data();
 
 private:
+    // Output file name to write to, will delete previous file if it exists
     std::string out_filename;
+    // Input file name to read from
     std::string in_filename;
 };
 
