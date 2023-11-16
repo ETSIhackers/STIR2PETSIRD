@@ -2,7 +2,6 @@
 #include <string>
 #include <fstream>
 #include <memory>
-#include <filesystem>
 
 #include "stir/listmode/ListModeData.h"
 #include "stir/listmode/ListEvent.h"
@@ -106,14 +105,11 @@ STIRPETSIRDConvertor::process_data()
   prd::TimeBlock time_block;
   std::vector<prd::CoincidenceEvent> prompts_this_block;
   double current_time = 0.0;
+  unsigned long num_events = 0;
 
   // Setup the prd header info
   prd::Header header_info = get_header();
   header_info.scanner = get_scanner_info(stir_scanner);
-
-  // Remove previous out_filename if it exists
-  if (std::filesystem::exists(this->out_filename))
-      std::filesystem::remove(this->out_filename);
 
   prd::binary::PrdExperimentWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
@@ -150,10 +146,12 @@ STIRPETSIRDConvertor::process_data()
           e.energy_2_idx = 0;
           e.tof_idx = 0;
           prompts_this_block.push_back(e);
+          ++num_events;
         } // end of spatial event processing
     }     // end of while loop over all events
     writer.EndTimeBlocks();
     writer.Close();
+    std::cout << "Done! Processed " << num_events << " events." << std::endl;
 }
 
 int

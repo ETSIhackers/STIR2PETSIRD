@@ -19,7 +19,6 @@ private:
 
     // Pointer to listmode data
     std::unique_ptr<stir::ListModeData> lm_data_ptr;
-
 };
 
 #endif // STIRPETSIRDCONVERTOR_H
