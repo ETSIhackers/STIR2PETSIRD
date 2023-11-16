@@ -82,6 +82,14 @@ get_header()
   return header;
 }
 
+
+STIRPETSIRDConvertor::STIRPETSIRDConvertor(const std::string& out_filename, const std::string& in_filename)
+  : out_filename(out_filename), in_filename(in_filename)
+{
+  this->lm_data_ptr = stir::read_from_file<stir::ListModeData>(this->in_filename);
+}
+
+
 void
 STIRPETSIRDConvertor::process_data()
 {
@@ -90,23 +98,25 @@ STIRPETSIRDConvertor::process_data()
         << "\t- Output file: " << this->out_filename << "\n" << std::endl;
 
   using namespace stir;
-  auto lm_data_ptr = read_from_file<ListModeData>(this->in_filename);
   const auto& stir_scanner = *lm_data_ptr->get_proj_data_info_sptr()->get_scanner_ptr();
+
+  // Setup stir record, prd time blocks and timing info
   auto record_sptr = lm_data_ptr->get_empty_record_sptr();
   auto& record = *record_sptr;
-
-  prd::ScannerInformation scanner_info = get_scanner_info(stir_scanner);
-  prd::Header header_info = get_header();
-  header_info.scanner = scanner_info;
+  prd::TimeBlock time_block;
+  std::vector<prd::CoincidenceEvent> prompts_this_block;
   double current_time = 0.0;
 
+  // Setup the prd header info
+  prd::Header header_info = get_header();
+  header_info.scanner = get_scanner_info(stir_scanner);
+
+  // Remove previous out_filename if it exists
   if (std::filesystem::exists(this->out_filename))
       std::filesystem::remove(this->out_filename);
 
   prd::binary::PrdExperimentWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
-  prd::TimeBlock time_block;
-  std::vector<prd::CoincidenceEvent> prompts_this_block;
 
   while (true)
     {
