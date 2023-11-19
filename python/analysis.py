@@ -1,7 +1,6 @@
 import sys
 import numpy
 
-sys.path.insert(0, "/workspaces/STIR2PETSIRD/PETSIRD/python")
 import prd
 
 
