@@ -2,9 +2,7 @@
 #include <string>
 #include <fstream>
 #include <memory>
-#include <filesystem>
 
-#include "STIR_PETSIRD_convertor.h"
 #include "stir/listmode/ListModeData.h"
 #include "stir/listmode/ListEvent.h"
 #include "stir/listmode/ListRecord.h"
@@ -13,7 +11,7 @@
 #include "stir/Succeeded.h"
 #include "stir/IO/read_from_file.h"
 #include "stir/error.h"
-#include "hdf5/protocols.h"
+#include "binary/protocols.h"
 
 #include "STIR_PETSIRD_convertor.h"
 
@@ -83,27 +81,38 @@ get_header()
   return header;
 }
 
+
+STIRPETSIRDConvertor::STIRPETSIRDConvertor(const std::string& out_filename, const std::string& in_filename)
+  : out_filename(out_filename), in_filename(in_filename)
+{
+  this->lm_data_ptr = stir::read_from_file<stir::ListModeData>(this->in_filename);
+}
+
+
 void
 STIRPETSIRDConvertor::process_data()
 {
+  std::cout << "Converting STIR listmode data to PRD format...\n"
+        << "\t- Input file: " << this->in_filename << "\n"
+        << "\t- Output file: " << this->out_filename << "\n" << std::endl;
+
   using namespace stir;
-  shared_ptr<ListModeData> lm_data_ptr(read_from_file<ListModeData>(this->in_filename));
-  const auto& scanner = *lm_data_ptr->get_proj_data_info_sptr()->get_scanner_sptr();
-  shared_ptr<ListRecord> record_sptr = lm_data_ptr->get_empty_record_sptr();
-  ListRecord& record = *record_sptr;
+  const auto& stir_scanner = *lm_data_ptr->get_proj_data_info_sptr()->get_scanner_ptr();
 
-  prd::ScannerInformation scanner_info = get_scanner_info(*lm_data_ptr->get_scanner_ptr());
-  prd::Header header_info = get_header();
-  header_info.scanner = scanner_info;
-  double current_time = 0.0;
-
-  if (std::filesystem::exists(this->out_filename))
-      std::filesystem::remove(this->out_filename);
-
-  prd::hdf5::PrdExperimentWriter writer(this->out_filename);
-  writer.WriteHeader(header_info);
+  // Setup stir record, prd time blocks and timing info
+  auto record_sptr = lm_data_ptr->get_empty_record_sptr();
+  auto& record = *record_sptr;
   prd::TimeBlock time_block;
   std::vector<prd::CoincidenceEvent> prompts_this_block;
+  double current_time = 0.0;
+  unsigned long num_events = 0;
+
+  // Setup the prd header info
+  prd::Header header_info = get_header();
+  header_info.scanner = get_scanner_info(stir_scanner);
+
+  prd::binary::PrdExperimentWriter writer(this->out_filename);
+  writer.WriteHeader(header_info);
 
   while (true)
     {
@@ -124,28 +133,25 @@ STIRPETSIRDConvertor::process_data()
         {
           // assume it's a cylindrical scanner for now. will need to change later.
           auto& event = dynamic_cast<CListEventCylindricalScannerWithDiscreteDetectors const&>(record.event());
-          /*
-            auto lor = record.event().get_LOR();
-            lor.p1().x();
-            lor.p1().y();
-            lor.p2();
-          */
+
           DetectionPositionPair<> dp_pair;
           event.get_detection_position(dp_pair);
 
           prd::CoincidenceEvent e;
           e.detector_1_id
-              = dp_pair.pos1().tangential_coord() + dp_pair.pos1().axial_coord() * scanner.get_num_detectors_per_ring();
+              = dp_pair.pos1().tangential_coord() + dp_pair.pos1().axial_coord() * stir_scanner.get_num_detectors_per_ring();
           e.detector_2_id
-              = dp_pair.pos2().tangential_coord() + dp_pair.pos2().axial_coord() * scanner.get_num_detectors_per_ring();
+              = dp_pair.pos2().tangential_coord() + dp_pair.pos2().axial_coord() * stir_scanner.get_num_detectors_per_ring();
           e.energy_1_idx = 0;
           e.energy_2_idx = 0;
           e.tof_idx = 0;
           prompts_this_block.push_back(e);
+          ++num_events;
         } // end of spatial event processing
     }     // end of while loop over all events
     writer.EndTimeBlocks();
     writer.Close();
+    std::cout << "Done! Processed " << num_events << " events." << std::endl;
 }
 
 int
@@ -153,7 +159,8 @@ main(int argc, char* argv[])
 {
   if (argc != 3)
     {
-      std::cerr << "Usage: " << argv[0] << " <output_filename> <input_filename>\n";
+      std::cout << "Converts list mode data from STIR to PRD format.\n"
+                   "Usage: " << argv[0] << " <output_filename> <input_filename>\n";
       return 1;
     }
 
