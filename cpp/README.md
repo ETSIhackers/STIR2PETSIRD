@@ -4,7 +4,7 @@ This directory provides a C++ example code to read/write PETSIRD data from STIR.
 
 ## Requirements
    - STIR
-   - PRD
+   - PETSIRD
 
 ## Compile
 ```

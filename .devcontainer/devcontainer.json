@@ -1,7 +1,6 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containerdevcotns/tree/v0.238.0/containers/go
+// For format details, see https://aka.ms/devcontainer.json.
 {
-  "name": "prd",
+  "name": "petsird",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
@@ -48,7 +47,7 @@
         "cmake.buildDirectory": "${workspaceFolder}/cpp/build",
         "cmake.configureOnOpen": false,
 
-        "python.defaultInterpreterPath": "/opt/conda/envs/prd/bin/python",
+        "python.defaultInterpreterPath": "/opt/conda/envs/petsird/bin/python",
         "python.analysis.typeCheckingMode": "strict",
         "python.analysis.diagnosticMode": "workspace",
         "python.analysis.diagnosticSeverityOverrides": {
@@ -88,7 +87,7 @@
           "gitlens.showWhatsNewAfterUpgrades": false
         },
 
-        "gcovViewer.gcovBinary": "/opt/conda/envs/prd/bin/x86_64-conda-linux-gnu-gcov",
+        "gcovViewer.gcovBinary": "/opt/conda/envs/petsird/bin/x86_64-conda-linux-gnu-gcov",
         "gcovViewer.buildDirectories": ["${workspaceFolder}/cpp/build"],
 
         "search.useIgnoreFiles": false,
@@ -115,15 +114,11 @@
     }
   },
 
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
+  "overrideCommand": false,
+  "mounts": [
+    // Bind mount docker socket under an alias to support docker-from-docker
+    "source=/var/run/docker.sock,target=/var/run/docker-host.sock,type=bind"
+  ],
 
-  // Use 'postCreateCommand' to run commands after the container is created.
-  // "postCreateCommand": "go version",
-
-  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-  "remoteUser": "vscode",
-  "containerEnv": {
-    "PYTHONPATH": "/workspaces/STIR2PETSIRD/PETSIRD/python"
-  }
+  "remoteUser": "vscode"
 }

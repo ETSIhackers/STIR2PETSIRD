@@ -23,23 +23,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with: {submodules: recursive}
+      - name: strip environment.yml
+        run: |
+          cat environment.yml | grep -v "#.*\<\local\>" > temp-ci-environment.yml
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          submodules: recursive
-
-      - name: Configure environment
-        uses: ./.github/actions/configure-environment
-
+          activate-environment: yardl
+          environment-file: temp-ci-environment.yml
       - name: Install yardl
         run: |
+          rm temp-ci-environment.yml
           YARDL_DIR=${{github.workspace}}/yardl
           mkdir ${YARDL_DIR}
-          cd ${YARDL_DIR}
-          echo "${{github.workspace}}/yardl" >> $GITHUB_PATH
-          YARDL_VERSION=0.3.2
+          YARDL_VERSION=0.6.2
           wget --quiet "https://github.com/microsoft/yardl/releases/download/v${YARDL_VERSION}/yardl_${YARDL_VERSION}_linux_x86_64.tar.gz"
-          tar -xzf "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz"
+          tar -xzf "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz" -C "${YARDL_DIR}"
           rm "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz"
+          echo "${YARDL_DIR}" >> $GITHUB_PATH
 
       - name: Build model
         run: |
@@ -48,6 +50,7 @@ jobs:
 
       - name: Python
         run: |
+          pip install ./PETSIRD/python
           cd python
           python start.py
 
