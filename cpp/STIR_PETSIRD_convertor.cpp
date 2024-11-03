@@ -15,8 +15,8 @@
 
 #include "STIR_PETSIRD_convertor.h"
 
-// Convert from STIR scanner to PRD scanner info (for now, just cylindrical non-TOF scanners)
-prd::ScannerInformation
+// Convert from STIR scanner to petsird scanner info (for now, just cylindrical non-TOF scanners)
+petsird::ScannerInformation
 get_scanner_info(const stir::Scanner& stir_scanner)
 {
   float radius = stir_scanner.get_inner_ring_radius();
@@ -24,7 +24,7 @@ get_scanner_info(const stir::Scanner& stir_scanner)
   for (int i = 0; i < stir_scanner.get_num_detectors_per_ring(); ++i)
       angles.push_back(static_cast<float>(2 * M_PI * i / stir_scanner.get_num_detectors_per_ring()));
 
-  std::vector<prd::Detector> detectors;
+  std::vector<petsird::Detector> detectors;
   int detector_id = 0;
   int num_rings = stir_scanner.get_num_rings();
   for (int ring = 0; ring < num_rings; ++ring)
@@ -32,7 +32,7 @@ get_scanner_info(const stir::Scanner& stir_scanner)
     for (auto angle : angles)
     {
       // Create a new detector
-      prd::Detector d;
+      petsird::Detector d;
       d.x = radius * std::sin(angle);
       d.y = radius * std::cos(angle);
       d.z = (float)ring;
@@ -55,7 +55,7 @@ get_scanner_info(const stir::Scanner& stir_scanner)
   FArray1D energy_bin_edges(energy_bin_edges_shape);
   for (std::size_t i = 0; i < energy_bin_edges.size(); ++i)
     energy_bin_edges[i] = 430.F + i * (650.F - 430.F) / NUMBER_OF_ENERGY_BINS;
-  prd::ScannerInformation scanner_info;
+  petsird::ScannerInformation scanner_info;
   scanner_info.detectors = detectors;
   scanner_info.tof_bin_edges = tof_bin_edges;
   scanner_info.tof_resolution = TOF_RESOLUTION; // in mm
@@ -65,18 +65,18 @@ get_scanner_info(const stir::Scanner& stir_scanner)
   return scanner_info;
 }
 
-prd::Header
+petsird::Header
 get_header()
 {
-  prd::Subject subject;
+  petsird::Subject subject;
   subject.id = "123456";
-  prd::Institution institution;
+  petsird::Institution institution;
   institution.name = "ESTI Hackathon";
   institution.address = "Vancouver, Canada";
-  prd::ExamInformation exam_info;
+  petsird::ExamInformation exam_info;
   exam_info.subject = subject;
   exam_info.institution = institution;
-  prd::Header header;
+  petsird::Header header;
   header.exam = exam_info;
   return header;
 }
@@ -92,26 +92,28 @@ STIRPETSIRDConvertor::STIRPETSIRDConvertor(const std::string& out_filename, cons
 void
 STIRPETSIRDConvertor::process_data()
 {
-  std::cout << "Converting STIR listmode data to PRD format...\n"
+  std::cout << "Converting STIR listmode data to petsird format...\n"
         << "\t- Input file: " << this->in_filename << "\n"
         << "\t- Output file: " << this->out_filename << "\n" << std::endl;
 
   using namespace stir;
   const auto& stir_scanner = *lm_data_ptr->get_proj_data_info_sptr()->get_scanner_ptr();
 
-  // Setup stir record, prd time blocks and timing info
+  // Setup stir record, petsird time blocks and timing info
   auto record_sptr = lm_data_ptr->get_empty_record_sptr();
   auto& record = *record_sptr;
-  prd::TimeBlock time_block;
-  std::vector<prd::CoincidenceEvent> prompts_this_block;
+  petsird::TimeBlock time_block;
+  std::vector<petsird::CoincidenceEvent> prompts_this_block;
+  std::vector<petsird::DelayedsEvent> delayeds_this_block; 
+
   double current_time = 0.0;
   unsigned long num_events = 0;
 
-  // Setup the prd header info
-  prd::Header header_info = get_header();
+  // Setup the petsird header info
+  petsird::Header header_info = get_header();
   header_info.scanner = get_scanner_info(stir_scanner);
 
-  prd::binary::PrdExperimentWriter writer(this->out_filename);
+  petsird::binary::petsirdExperimentWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
 
   while (true)
@@ -137,7 +139,7 @@ STIRPETSIRDConvertor::process_data()
           DetectionPositionPair<> dp_pair;
           event.get_detection_position(dp_pair);
 
-          prd::CoincidenceEvent e;
+          petsird::CoincidenceEvent e;
           e.detector_1_id
               = dp_pair.pos1().tangential_coord() + dp_pair.pos1().axial_coord() * stir_scanner.get_num_detectors_per_ring();
           e.detector_2_id
@@ -159,7 +161,7 @@ main(int argc, char* argv[])
 {
   if (argc != 3)
     {
-      std::cout << "Converts list mode data from STIR to PRD format.\n"
+      std::cout << "Converts list mode data from STIR to petsird format.\n"
                    "Usage: " << argv[0] << " <output_filename> <input_filename>\n";
       return 1;
     }
