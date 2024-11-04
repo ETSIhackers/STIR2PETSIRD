@@ -19,7 +19,8 @@
 petsird::ScannerInformation
 get_scanner_info(const stir::Scanner& stir_scanner)
 {
-  float radius = stir_scanner.get_inner_ring_radius();
+  const float radius = stir_scanner.get_inner_ring_radius();
+#if 0 // TODO
   std::vector<float> angles;
   for (int i = 0; i < stir_scanner.get_num_detectors_per_ring(); ++i)
       angles.push_back(static_cast<float>(2 * M_PI * i / stir_scanner.get_num_detectors_per_ring()));
@@ -40,7 +41,7 @@ get_scanner_info(const stir::Scanner& stir_scanner)
       detectors.push_back(d);
     }
   }
-
+#endif
   typedef yardl::NDArray<float, 1> FArray1D;
   // TOF info (in mm)
   // Variables in capitals are to do to get from scanner.
@@ -56,12 +57,12 @@ get_scanner_info(const stir::Scanner& stir_scanner)
   for (std::size_t i = 0; i < energy_bin_edges.size(); ++i)
     energy_bin_edges[i] = 430.F + i * (650.F - 430.F) / NUMBER_OF_ENERGY_BINS;
   petsird::ScannerInformation scanner_info;
-  scanner_info.detectors = detectors;
+  // TODO scanner_info.detectors = detectors;
   scanner_info.tof_bin_edges = tof_bin_edges;
   scanner_info.tof_resolution = TOF_RESOLUTION; // in mm
   scanner_info.energy_bin_edges = energy_bin_edges;
   scanner_info.energy_resolution_at_511 = stir_scanner.get_energy_resolution();    // as fraction of 511
-  scanner_info.listmode_time_block_duration = 1.F; // ms
+  scanner_info.event_time_block_duration = 1.F; // ms
   return scanner_info;
 }
 
@@ -102,9 +103,9 @@ STIRPETSIRDConvertor::process_data()
   // Setup stir record, petsird time blocks and timing info
   auto record_sptr = lm_data_ptr->get_empty_record_sptr();
   auto& record = *record_sptr;
-  petsird::TimeBlock time_block;
+  petsird::EventTimeBlock time_block;
   std::vector<petsird::CoincidenceEvent> prompts_this_block;
-  std::vector<petsird::DelayedsEvent> delayeds_this_block; 
+  std::vector<petsird::CoincidenceEvent> delayeds_this_block; 
 
   double current_time = 0.0;
   unsigned long num_events = 0;
@@ -113,7 +114,7 @@ STIRPETSIRDConvertor::process_data()
   petsird::Header header_info = get_header();
   header_info.scanner = get_scanner_info(stir_scanner);
 
-  petsird::binary::petsirdExperimentWriter writer(this->out_filename);
+  petsird::binary::PETSIRDWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
 
   while (true)
@@ -126,7 +127,7 @@ STIRPETSIRDConvertor::process_data()
       if (record.is_time())
         {
           current_time = record.time().get_time_in_secs();
-          time_block.id = current_time;
+          time_block.start = current_time;
           time_block.prompt_events = prompts_this_block;
           writer.WriteTimeBlocks(time_block);
           prompts_this_block.clear();
@@ -140,12 +141,12 @@ STIRPETSIRDConvertor::process_data()
           event.get_detection_position(dp_pair);
 
           petsird::CoincidenceEvent e;
-          e.detector_1_id
+          e.detector_ids[0]
               = dp_pair.pos1().tangential_coord() + dp_pair.pos1().axial_coord() * stir_scanner.get_num_detectors_per_ring();
-          e.detector_2_id
+          e.detector_ids[1]
               = dp_pair.pos2().tangential_coord() + dp_pair.pos2().axial_coord() * stir_scanner.get_num_detectors_per_ring();
-          e.energy_1_idx = 0;
-          e.energy_2_idx = 0;
+          e.energy_indices[0] = 0;
+          e.energy_indices[0] = 0;
           e.tof_idx = 0;
           prompts_this_block.push_back(e);
           ++num_events;
