@@ -14,10 +14,11 @@ if (STIR_VERSION VERSION_LESS 5.2.0) # probably will need 6.0 really
   message(FATAL_ERROR "Your STIR version is very old (${STIR_VERSION}). Use 6.0 or later")
 endif()
 
-add_subdirectory(../PETSIRD/cpp/generated PETSIRD_generated)
-include_directories(../PETSIRD/cpp/generated)
+set(PETSIRD_dir ../PETSIRD/cpp/generated)
+add_subdirectory(${PETSIRD_dir} PETSIRD_generated)
 
 add_executable(STIR_PETSIRD_convertor STIR_PETSIRD_convertor.cpp ${STIR_REGISTRIES})
+target_include_directories(STIR_PETSIRD_convertor PUBLIC ${PETSIRD_dir})
 target_link_libraries(STIR_PETSIRD_convertor PUBLIC petsird_generated ${STIR_LIBRARIES})
 install(TARGETS STIR_PETSIRD_convertor DESTINATION bin)
 
