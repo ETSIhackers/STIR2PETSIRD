@@ -39,32 +39,34 @@ petsird::BoxSolidVolume get_crystal_template
 }
 
 //! return a module of NUM_CRYSTALS_PER_MODULE cuboids
-// petsird::DetectorModule get_detector_module_tmpl()
-// {
-//   petsird::ReplicatedBoxSolidVolume rep_volume;
-//   {
-//     rep_volume.object = get_crystal();
-//     constexpr auto N0 = NUM_CRYSTALS_PER_MODULE[0];
-//     constexpr auto N1 = NUM_CRYSTALS_PER_MODULE[1];
-//     constexpr auto N2 = NUM_CRYSTALS_PER_MODULE[2];
-//     for (int rep0 = 0; rep0 < N0; ++rep0)
-//       for (int rep1 = 0; rep1 < N1; ++rep1)
-//         for (int rep2 = 0; rep2 < N2; ++rep2)
-//           {
-//             petsird::RigidTransformation transform{ { { 1.0, 0.0, 0.0, RADIUS + rep0 * CRYSTAL_LENGTH[0] },
-//                                                       { 0.0, 1.0, 0.0, (rep1 - N1 / 2) * CRYSTAL_LENGTH[1] },
-//                                                       { 0.0, 0.0, 1.0, (rep2 - N2 / 2) * CRYSTAL_LENGTH[2] } } };
-//             rep_volume.transforms.push_back(transform);
-//             rep_volume.ids.push_back(rep0 + N0 * (rep1 + N1 * rep2));
-//           }
-//   }
+petsird::DetectorModule get_detector_module_tmpl(const std::array<float, 3> &  crystal_length, 
+                                                const std::array< int, 3> & NUM_CRYSTALS_PER_MODULE, 
+                                                const float RADIUS)
+{
+  petsird::ReplicatedBoxSolidVolume rep_volume;
+  {
+    rep_volume.object = get_crystal_template(crystal_length);
+    const auto N0 = NUM_CRYSTALS_PER_MODULE[0];
+    const auto N1 = NUM_CRYSTALS_PER_MODULE[1];
+    const auto N2 = NUM_CRYSTALS_PER_MODULE[2];
+    for (int rep0 = 0; rep0 < N0; ++rep0)
+      for (int rep1 = 0; rep1 < N1; ++rep1)
+        for (int rep2 = 0; rep2 < N2; ++rep2)
+          {
+            petsird::RigidTransformation transform{ { { 1.0, 0.0, 0.0, RADIUS + rep0 * crystal_length[0] },
+                                                      { 0.0, 1.0, 0.0, (rep1 - N1 / 2) * crystal_length[1] },
+                                                      { 0.0, 0.0, 1.0, (rep2 - N2 / 2) * crystal_length[2] } } };
+            rep_volume.transforms.push_back(transform);
+            rep_volume.ids.push_back(rep0 + N0 * (rep1 + N1 * rep2));
+          }
+  }
 
-//   petsird::DetectorModule detector_module;
-//   detector_module.detecting_elements.push_back(rep_volume);
-//   detector_module.detecting_element_ids.push_back(0);
+  petsird::DetectorModule detector_module;
+  detector_module.detecting_elements.push_back(rep_volume);
+  detector_module.detecting_element_ids.push_back(0);
 
-//   return detector_module;
-// }
+  return detector_module;
+}
 
 // Convert from STIR scanner to petsird scanner info (for now, just cylindrical non-TOF scanners)
 petsird::ScannerInformation
@@ -73,29 +75,52 @@ const stir::ExamInfo& stir_exam_info)
 {
   const stir::Scanner* stir_scanner = stir_proj_data_info.get_scanner_ptr(); 
   const float radius = stir_scanner->get_inner_ring_radius();
-
+  petsird::ReplicatedDetectorModule rep_module;
 
 if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical * >(&stir_proj_data_info))) {
   //TODO
+  //rep_module.ids.push_back(module_id++);
+  //rep_module.transforms.push_back(transform);
 } else if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoCylindrical *>(&stir_proj_data_info))) {
-
-    // these are constants for now
-    // constexpr uint32_t NUMBER_OF_ENERGY_BINS = 3;
-    // constexpr uint32_t NUMBER_OF_TOF_BINS = 300;
-    // constexpr float RADIUS = 400.F;
     
-    // constexpr std::array<float, 3> NUM_CRYSTALS_PER_MODULE{ 2, 4, 5 };
+    const std::array< int, 3> NUM_CRYSTALS_PER_MODULE{ stir_scanner->get_num_detector_layers(),
+    stir_scanner->get_num_axial_crystals_per_block(),
+                                                             stir_scanner->get_num_transaxial_crystals_per_block() 
+                                                              };
     // constexpr uint32_t NUM_MODULES_ALONG_RING{ 20 };
     // constexpr uint32_t NUM_MODULES_ALONG_AXIS{ 2 };
     // constexpr float MODULE_AXIS_SPACING{ (NUM_CRYSTALS_PER_MODULE[2] + 4) * CRYSTAL_LENGTH[2] };
 
     // constexpr uint32_t NUMBER_OF_TIME_BLOCKS = 6;
     // constexpr float COUNT_RATE = 500.F;
-
+    
     const std::array<float, 3> crystal_dims{stir_scanner->get_average_depth_of_interaction(), 
-                                                stir_scanner->get_default_bin_size(), 
-                                              stir_scanner->get_ring_spacing() };
+    stir_scanner->get_ring_spacing(),
+                                              2*M_PI*radius / stir_scanner->get_num_detectors_per_ring()
+                                              };
     auto box = get_crystal_template(crystal_dims);
+
+    {
+      rep_module.object = get_detector_module_tmpl(crystal_dims, NUM_CRYSTALS_PER_MODULE, radius);
+      int module_id = 0;
+      std::vector<float> angles;
+      for (unsigned int i = 0; i < stir_scanner->get_num_transaxial_blocks(); ++i)
+      {
+        angles.push_back(static_cast<float>((2 * M_PI * i) / stir_scanner->get_num_transaxial_blocks()));
+      }
+
+      float MODULE_AXIS_SPACING = stir_scanner->get_num_rings() * stir_scanner->get_ring_spacing() / stir_scanner->get_num_axial_blocks(); 
+      
+      for (auto angle : angles)
+        for (unsigned ax_mod = 0; ax_mod < stir_scanner->get_num_axial_blocks(); ++ax_mod)
+        {
+          petsird::RigidTransformation transform{ { { std::cos(angle), std::sin(angle), 0.F, 0.F },
+                                                    { -std::sin(angle), std::cos(angle), 0.F, 0.F },
+                                                    { 0.F, 0.F, 1.F, MODULE_AXIS_SPACING * ax_mod } } };
+          rep_module.ids.push_back(module_id++);
+          rep_module.transforms.push_back(transform);
+        }
+    }
 
     // num_trans_blks = stir_scanner->get_num_transaxial_blocks();
     // num_axial_blks = stir_scanner->get_num_axial_blocks();
@@ -106,6 +131,10 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
 } else {
     std::cout << "This should never happen! Abort" << std::endl;
 }
+
+  petsird::ScannerGeometry scanner_geometry;
+  scanner_geometry.replicated_modules.push_back(rep_module);
+  scanner_geometry.ids.push_back(0);
 
   typedef yardl::NDArray<float, 1> FArray1D;
   // TOF info (in mm)
@@ -125,6 +154,7 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
     i * (stir_exam_info.get_high_energy_thres() - stir_exam_info.get_low_energy_thres()) / NUMBER_OF_ENERGY_BINS;
     
   petsird::ScannerInformation scanner_info;
+  scanner_info.scanner_geometry = scanner_geometry;
   // TODO scanner_info.detectors = detectors;
   scanner_info.tof_bin_edges = tof_bin_edges;
   scanner_info.tof_resolution = TOF_RESOLUTION; // in mm
