@@ -12,6 +12,7 @@
 #include "stir/IO/read_from_file.h"
 #include "stir/error.h"
 #include "binary/protocols.h"
+#include "petsird_helpers.h"
 #include "STIR_PETSIRD_convertor.h"
 
 // Convert from STIR scanner to petsird scanner info (for now, just cylindrical non-TOF scanners)
