@@ -6,6 +6,8 @@
 #include "stir/listmode/ListModeData.h"
 #include "stir/listmode/ListRecord.h"
 
+petsird::BoxSolidVolume get_crystal_template(const std::array<float, 3>& crystal_length);
+
 class STIRPETSIRDConvertor {
 public:
     STIRPETSIRDConvertor(const std::string& out_filename, const std::string& in_filename);

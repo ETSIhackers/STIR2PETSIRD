@@ -14,7 +14,6 @@
 #include "binary/protocols.h"
 #include "petsird_helpers.h"
 
-
 #include "stir/ProjDataInfoBlocksOnCylindrical.h"
 #include "stir/ProjDataInfoCylindrical.h"
 
@@ -22,51 +21,50 @@
 
 
 //! return a cuboid volume
-petsird::BoxSolidVolume
-get_crystal()
+petsird::BoxSolidVolume get_crystal_template
+(const std::array<float, 3> &  crystal_length)
 {
   using petsird::Coordinate;
   petsird::BoxShape crystal_shape{ Coordinate{ { 0, 0, 0 } },
-                                   Coordinate{ { 0, 0, CRYSTAL_LENGTH[2] } },
-                                   Coordinate{ { 0, CRYSTAL_LENGTH[1], CRYSTAL_LENGTH[2] } },
-                                   Coordinate{ { 0, CRYSTAL_LENGTH[1], 0 } },
-                                   Coordinate{ { CRYSTAL_LENGTH[0], 0, 0 } },
-                                   Coordinate{ { CRYSTAL_LENGTH[0], 0, CRYSTAL_LENGTH[2] } },
-                                   Coordinate{ { CRYSTAL_LENGTH[0], CRYSTAL_LENGTH[1], CRYSTAL_LENGTH[2] } },
-                                   Coordinate{ { CRYSTAL_LENGTH[0], CRYSTAL_LENGTH[1], 0 } } };
+                                   Coordinate{ { 0, 0, crystal_length[2] } },
+                                   Coordinate{ { 0, crystal_length[1], crystal_length[2] } },
+                                   Coordinate{ { 0, crystal_length[1], 0 } },
+                                   Coordinate{ { crystal_length[0], 0, 0 } },
+                                   Coordinate{ { crystal_length[0], 0, crystal_length[2] } },
+                                   Coordinate{ { crystal_length[0], crystal_length[1], crystal_length[2] } },
+                                   Coordinate{ { crystal_length[0], crystal_length[1], 0 } } };
 
   petsird::BoxSolidVolume crystal{ crystal_shape, /* material_id */ 1 };
   return crystal;
 }
 
 //! return a module of NUM_CRYSTALS_PER_MODULE cuboids
-petsird::DetectorModule
-get_detector_module()
-{
-  petsird::ReplicatedBoxSolidVolume rep_volume;
-  {
-    rep_volume.object = get_crystal();
-    constexpr auto N0 = NUM_CRYSTALS_PER_MODULE[0];
-    constexpr auto N1 = NUM_CRYSTALS_PER_MODULE[1];
-    constexpr auto N2 = NUM_CRYSTALS_PER_MODULE[2];
-    for (int rep0 = 0; rep0 < N0; ++rep0)
-      for (int rep1 = 0; rep1 < N1; ++rep1)
-        for (int rep2 = 0; rep2 < N2; ++rep2)
-          {
-            petsird::RigidTransformation transform{ { { 1.0, 0.0, 0.0, RADIUS + rep0 * CRYSTAL_LENGTH[0] },
-                                                      { 0.0, 1.0, 0.0, (rep1 - N1 / 2) * CRYSTAL_LENGTH[1] },
-                                                      { 0.0, 0.0, 1.0, (rep2 - N2 / 2) * CRYSTAL_LENGTH[2] } } };
-            rep_volume.transforms.push_back(transform);
-            rep_volume.ids.push_back(rep0 + N0 * (rep1 + N1 * rep2));
-          }
-  }
+// petsird::DetectorModule get_detector_module_tmpl()
+// {
+//   petsird::ReplicatedBoxSolidVolume rep_volume;
+//   {
+//     rep_volume.object = get_crystal();
+//     constexpr auto N0 = NUM_CRYSTALS_PER_MODULE[0];
+//     constexpr auto N1 = NUM_CRYSTALS_PER_MODULE[1];
+//     constexpr auto N2 = NUM_CRYSTALS_PER_MODULE[2];
+//     for (int rep0 = 0; rep0 < N0; ++rep0)
+//       for (int rep1 = 0; rep1 < N1; ++rep1)
+//         for (int rep2 = 0; rep2 < N2; ++rep2)
+//           {
+//             petsird::RigidTransformation transform{ { { 1.0, 0.0, 0.0, RADIUS + rep0 * CRYSTAL_LENGTH[0] },
+//                                                       { 0.0, 1.0, 0.0, (rep1 - N1 / 2) * CRYSTAL_LENGTH[1] },
+//                                                       { 0.0, 0.0, 1.0, (rep2 - N2 / 2) * CRYSTAL_LENGTH[2] } } };
+//             rep_volume.transforms.push_back(transform);
+//             rep_volume.ids.push_back(rep0 + N0 * (rep1 + N1 * rep2));
+//           }
+//   }
 
-  petsird::DetectorModule detector_module;
-  detector_module.detecting_elements.push_back(rep_volume);
-  detector_module.detecting_element_ids.push_back(0);
+//   petsird::DetectorModule detector_module;
+//   detector_module.detecting_elements.push_back(rep_volume);
+//   detector_module.detecting_element_ids.push_back(0);
 
-  return detector_module;
-}
+//   return detector_module;
+// }
 
 // Convert from STIR scanner to petsird scanner info (for now, just cylindrical non-TOF scanners)
 petsird::ScannerInformation
@@ -81,25 +79,30 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
   //TODO
 } else if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoCylindrical *>(&stir_proj_data_info))) {
 
-      // these are constants for now
-    constexpr uint32_t NUMBER_OF_ENERGY_BINS = 3;
-    constexpr uint32_t NUMBER_OF_TOF_BINS = 300;
-    constexpr float RADIUS = 400.F;
-    constexpr std::array<float, 3> CRYSTAL_LENGTH{ 20.F, 4.F, 4.F };
-    constexpr std::array<float, 3> NUM_CRYSTALS_PER_MODULE{ 2, 4, 5 };
-    constexpr uint32_t NUM_MODULES_ALONG_RING{ 20 };
-    constexpr uint32_t NUM_MODULES_ALONG_AXIS{ 2 };
-    constexpr float MODULE_AXIS_SPACING{ (NUM_CRYSTALS_PER_MODULE[2] + 4) * CRYSTAL_LENGTH[2] };
+    // these are constants for now
+    // constexpr uint32_t NUMBER_OF_ENERGY_BINS = 3;
+    // constexpr uint32_t NUMBER_OF_TOF_BINS = 300;
+    // constexpr float RADIUS = 400.F;
+    
+    // constexpr std::array<float, 3> NUM_CRYSTALS_PER_MODULE{ 2, 4, 5 };
+    // constexpr uint32_t NUM_MODULES_ALONG_RING{ 20 };
+    // constexpr uint32_t NUM_MODULES_ALONG_AXIS{ 2 };
+    // constexpr float MODULE_AXIS_SPACING{ (NUM_CRYSTALS_PER_MODULE[2] + 4) * CRYSTAL_LENGTH[2] };
 
-    constexpr uint32_t NUMBER_OF_TIME_BLOCKS = 6;
-    constexpr float COUNT_RATE = 500.F;
-    num_trans_blks = stir_scanner->get_num_transaxial_blocks();
-    num_axial_blks = stir_scanner->get_num_axial_blocks();
+    // constexpr uint32_t NUMBER_OF_TIME_BLOCKS = 6;
+    // constexpr float COUNT_RATE = 500.F;
+
+    const std::array<float, 3> crystal_dims{stir_scanner->get_average_depth_of_interaction(), 
+                                                stir_scanner->get_default_bin_size(), 
+                                              stir_scanner->get_ring_spacing() };
+    auto box = get_crystal_template(crystal_dims);
+
+    // num_trans_blks = stir_scanner->get_num_transaxial_blocks();
+    // num_axial_blks = stir_scanner->get_num_axial_blocks();
 
     // DetectorModule
     // REplicatedDetectorModule
 
-    }
 } else {
     std::cout << "This should never happen! Abort" << std::endl;
 }
@@ -138,7 +141,7 @@ get_header()
   subject.id = "123456";
   petsird::Institution institution;
   institution.name = "ESTI Hackathon";
-  institution.address = "Vancouver, Canada";
+  institution.address = "Tampa, FL, USA";
   petsird::ExamInformation exam_info;
   exam_info.subject = subject;
   exam_info.institution = institution;
@@ -174,7 +177,7 @@ STIRPETSIRDConvertor::process_data()
   petsird::ExternalSignalTimeBlock signal_time_blk;
   petsird::BedMovementTimeBlock bed_movement_time_blk;
   petsird::GantryMovementTimeBlock gantry_movement_time_blk;
-  
+
   std::vector<petsird::CoincidenceEvent> prompts_this_blk;
 
   double current_time = 0.0;
@@ -187,9 +190,10 @@ STIRPETSIRDConvertor::process_data()
 
   petsird::binary::PETSIRDWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
-
+  std::cout << "I am here " << std::endl; 
   while (true)
     {
+
       if (lm_data_ptr->get_next_record(record) == Succeeded::no)
         {
           // no more events in file for some reason
