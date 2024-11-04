@@ -1,18 +1,21 @@
-#! /bin/bash
-# FILEPATH: /workspaces/STIR2PETSIRD/cpp/build.sh
-
+#! /usr/bin/env bash
 # Utility script to help build STIR_PETSIRD_convertor in the cpp dir
-STIR2PETSIRD_DIR="/workspaces/STIR2PETSIRD"
-STIR_DIR="${STIR2PETSIRD_DIR}/stir/install/lib/cmake/"
-PETSIRD_DIR="${STIR2PETSIRD_DIR}/PETSIRD/cpp/generated"
-cpp_dir="${STIR2PETSIRD_DIR}/cpp"
+
+# get current directory, see https://stackoverflow.com/a/4774063
+FILEPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+# use this to point to your local installation of CMake doesn't find it
+#CMAKE_STIR_OPTS="-DSTIR_DIR=\"${HOME}/stir/install/lib/cmake/STIR-6.2\""
+cpp_dir="${FILEPATH}"
 BUILD_DIR="${cpp_dir}/build"
 
+pushd "${cpp_dir}/../PETSIRD/model"
+yardl generate
+popd
+
 # rm -rf ${BUILD_DIR}  # Optional
-if [ ! -d "${BUILD_DIR}" ]; then
-    mkdir -p "${BUILD_DIR}"
-fi
+mkdir -p "${BUILD_DIR}"
 
 cd ${BUILD_DIR}
-cmake -G Ninja -S ${cpp_dir} -DHDF5_ROOT=${CONDA_PREFIX} -DSTIR_DIR=${STIR_DIR} -DCMAKE_PREFIX_PATH=${PETSIRD_DIR}
+cmake -G Ninja -S ${cpp_dir} -DHDF5_ROOT=${CONDA_PREFIX} -DCMAKE_PREFIX_PATH=${CONDA_PREFIX} ${CMAKE_STIR_OPTS}
 ninja
