@@ -12,7 +12,6 @@
 #include "stir/IO/read_from_file.h"
 #include "stir/error.h"
 #include "binary/protocols.h"
-
 #include "STIR_PETSIRD_convertor.h"
 
 // Convert from STIR scanner to petsird scanner info (for now, just cylindrical non-TOF scanners)
@@ -105,12 +104,12 @@ STIRPETSIRDConvertor::process_data()
   auto& record = *record_sptr;
 
   petsird::EventTimeBlock  event_time_blk;
-  petsird::ExternalSignalTimeBlock singal_time_blk; 
-  petsird::BedMovementTimeBlock bed_movement_time_blk; 
-  petsird::GantryMovementTimeBlock gantry_movement_time_blk; 
+  petsird::ExternalSignalTimeBlock signal_time_blk;
+  petsird::BedMovementTimeBlock bed_movement_time_blk;
+  petsird::GantryMovementTimeBlock gantry_movement_time_blk;
 
   std::vector<petsird::CoincidenceEvent> prompts_this_block;
-  std::vector<petsird::DelayedsEvent> delayeds_this_block; 
+  std::vector<petsird::CoincidenceEvent> delayeds_this_block;
 
   double current_time = 0.0;
   unsigned long num_events = 0;
