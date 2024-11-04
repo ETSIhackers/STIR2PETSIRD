@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 if(WIN32)
   add_compile_options(/W3 /WX)
 else()
-  add_compile_options(-Wall -Wextra -pedantic)
+  add_compile_options(-Wall) # -Wextra -pedantic)
 endif()
 
 find_package(STIR REQUIRED)
