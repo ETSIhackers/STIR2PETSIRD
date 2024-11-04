@@ -103,9 +103,14 @@ STIRPETSIRDConvertor::process_data()
   // Setup stir record, petsird time blocks and timing info
   auto record_sptr = lm_data_ptr->get_empty_record_sptr();
   auto& record = *record_sptr;
-  petsird::EventTimeBlock time_block;
+
+  petsird::EventTimeBlock  event_time_blk;
+  petsird::ExternalSignalTimeBlock singal_time_blk; 
+  petsird::BedMovementTimeBlock bed_movement_time_blk; 
+  petsird::GantryMovementTimeBlock gantry_movement_time_blk; 
+
   std::vector<petsird::CoincidenceEvent> prompts_this_block;
-  std::vector<petsird::CoincidenceEvent> delayeds_this_block; 
+  std::vector<petsird::DelayedsEvent> delayeds_this_block; 
 
   double current_time = 0.0;
   unsigned long num_events = 0;
@@ -127,9 +132,9 @@ STIRPETSIRDConvertor::process_data()
       if (record.is_time())
         {
           current_time = record.time().get_time_in_secs();
-          time_block.start = current_time;
-          time_block.prompt_events = prompts_this_block;
-          writer.WriteTimeBlocks(time_block);
+          event_time_blk.start = current_time;
+          event_time_blk.prompt_events = prompts_this_block;
+          writer.WriteTimeBlocks(event_time_blk);
           prompts_this_block.clear();
         }
       if (record.is_event())
@@ -146,7 +151,7 @@ STIRPETSIRDConvertor::process_data()
           e.detector_ids[1]
               = dp_pair.pos2().tangential_coord() + dp_pair.pos2().axial_coord() * stir_scanner.get_num_detectors_per_ring();
           e.energy_indices[0] = 0;
-          e.energy_indices[0] = 0;
+          e.energy_indices[1] = 0;
           e.tof_idx = 0;
           prompts_this_block.push_back(e);
           ++num_events;
