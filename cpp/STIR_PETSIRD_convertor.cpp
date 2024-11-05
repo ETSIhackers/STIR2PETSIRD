@@ -84,20 +84,14 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
 } else if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoCylindrical *>(&stir_proj_data_info))) {
     
     const std::array< int, 3> NUM_CRYSTALS_PER_MODULE{ stir_scanner->get_num_detector_layers(),
-    stir_scanner->get_num_axial_crystals_per_block(),
-                                                             stir_scanner->get_num_transaxial_crystals_per_block() 
-                                                              };
-    // constexpr uint32_t NUM_MODULES_ALONG_RING{ 20 };
-    // constexpr uint32_t NUM_MODULES_ALONG_AXIS{ 2 };
-    // constexpr float MODULE_AXIS_SPACING{ (NUM_CRYSTALS_PER_MODULE[2] + 4) * CRYSTAL_LENGTH[2] };
-
-    // constexpr uint32_t NUMBER_OF_TIME_BLOCKS = 6;
-    // constexpr float COUNT_RATE = 500.F;
+        stir_scanner->get_num_transaxial_crystals_per_block(),
+        stir_scanner->get_num_axial_crystals_per_block()
+        };
     
     const std::array<float, 3> crystal_dims{stir_scanner->get_average_depth_of_interaction(), 
-    stir_scanner->get_ring_spacing(),
-                                              2*M_PI*radius / stir_scanner->get_num_detectors_per_ring()
-                                              };
+        2*M_PI*radius / stir_scanner->get_num_detectors_per_ring(),
+        stir_scanner->get_ring_spacing(),
+        };
     auto box = get_crystal_template(crystal_dims);
 
     {
@@ -121,12 +115,6 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
           rep_module.transforms.push_back(transform);
         }
     }
-
-    // num_trans_blks = stir_scanner->get_num_transaxial_blocks();
-    // num_axial_blks = stir_scanner->get_num_axial_blocks();
-
-    // DetectorModule
-    // REplicatedDetectorModule
 
 } else {
     std::cout << "This should never happen! Abort" << std::endl;
