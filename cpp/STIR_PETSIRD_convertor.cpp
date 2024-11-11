@@ -264,14 +264,27 @@ get_detection_efficiencies_help(const ProjDataInfoT& stir_proj_data_info,
                 const stir::DetectionPosition<> pos1(inds1[1] + tang_mod_1 * NUM_CRYSTALS_PER_MODULE[1],
                                                      inds1[2] + ax_mod_1 * NUM_CRYSTALS_PER_MODULE[2],
                                                      inds1[0]);
-                std::cerr << "0: " << pos0 << pos1 << "(" << inds0[1] << ", " << ax_mod_0 << "), " << "(" << inds1[1] << ", " << ax_mod_1 << ")" << std::endl;
 
                 const stir::DetectionPositionPair<> det_pos_pair(pos0, pos1);
                 stir::Bin bin;
-                module_pair_efficiencies.values(id0, 0, id1, 0) =
-                  stir_proj_data_info.get_bin_for_det_pos_pair(bin, det_pos_pair).succeeded()
-                  ? norm.get_bin_efficiency(bin)
-                  : 0.F;
+                float& eff = module_pair_efficiencies.values(id0, 0, id1, 0);
+                if (stir_proj_data_info.get_bin_for_det_pos_pair(bin, det_pos_pair).succeeded())
+                  {
+                    // still need to check if within limits
+                    if (bin.tangential_pos_num() >= stir_proj_data_info.get_min_tangential_pos_num() &&
+                        bin.tangential_pos_num() <= stir_proj_data_info.get_max_tangential_pos_num() &&
+                        bin.segment_num() >= stir_proj_data_info.get_min_segment_num() &&
+                        bin.segment_num() <= stir_proj_data_info.get_max_segment_num() &&
+                        bin.axial_pos_num() >= stir_proj_data_info.get_min_axial_pos_num(bin.segment_num()) &&
+                        bin.axial_pos_num() <= stir_proj_data_info.get_max_axial_pos_num(bin.segment_num()))
+                      eff = norm.get_bin_efficiency(bin);
+                    else
+                      eff = 0.F;
+                  }
+                else
+                  {
+                    eff = 0.F;
+                  }
               }
           }
       }
@@ -369,15 +382,14 @@ STIRPETSIRDConvertor::process_data()
       if (!this->normalisation_sptr->set_up(stir_exam_info_sptr, stir_proj_data_info_sptr).succeeded())
         stir::error("Error setting up norm");
 
-      //header_info.scanner.detection_efficiencies =
-      auto det_Effs=
+      header_info.scanner.detection_efficiencies =
         get_detection_efficiencies(*stir_proj_data_info_sptr, *stir_exam_info_sptr, *this->normalisation_sptr);
     }
   petsird::binary::PETSIRDWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
   std::cout << "I am here " << std::endl;
 
-  int num_events_to_process = 10;
+  long num_events_to_process = 1000; // set to -1 to process all
 
   while (num_events_to_process)
     {
@@ -397,7 +409,8 @@ STIRPETSIRDConvertor::process_data()
         }
       if (record.is_event())
         {
-          num_events_to_process--;
+          if (num_events_to_process > 0) // we are using -1 when processing all
+            num_events_to_process--;
           // assume it's a cylindrical scanner for now. will need to change later.
           auto& event = dynamic_cast<CListEventCylindricalScannerWithDiscreteDetectors const&>(record.event());
 
