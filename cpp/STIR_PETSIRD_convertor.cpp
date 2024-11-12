@@ -198,9 +198,8 @@ get_detection_efficiencies_help(const ProjDataInfoT& stir_proj_data_info,
       stir_scanner->get_num_axial_crystals_per_block()
       };
   // TODO could do axial_fan_size based on max ring diff
-  auto fan_size = stir_proj_data_info.get_num_tangential_poss() / stir_scanner->get_num_transaxial_blocks() + 1;
-  if (fan_size % 2 == 0)
-    ++fan_size;
+  auto fan_size = std::ceil(static_cast<float>(stir_proj_data_info.get_num_tangential_poss()) / stir_scanner->get_num_transaxial_crystals_per_block());
+  std::cerr << "Module fan_size along the ring : " << fan_size << std::endl;
 
   const auto NZ = NUM_MODULES_ALONG_AXIS;
   detection_efficiencies.module_pair_sgidlut = yardl::NDArray<int, 2>({ num_modules, num_modules });
@@ -215,7 +214,7 @@ get_detection_efficiencies_help(const ProjDataInfoT& stir_proj_data_info,
             const auto a1 = mod1 / NZ;
             const auto z2 = mod2 % NZ;
             const auto a2 = mod2 / NZ;
-            if (std::abs(int(a1) - int(a2)) < NUM_MODULES_ALONG_RING - fan_size)
+            if (std::abs(2 * std::abs(int(a1) - int(a2)) - NUM_MODULES_ALONG_RING) > fan_size)
               {
                 module_pair_SGID_LUT(mod1, mod2) = -1;
               }
