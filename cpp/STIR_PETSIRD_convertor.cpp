@@ -79,7 +79,7 @@ T get_id_from_indices(const std::array<T, 3>& inds, const std::array<T, 3>& size
 inline
 stir::DetectionPosition<> get_stir_det_pos_from_PETSIRD_id(const petsird_helpers::ModuleAndElement& mod_det_el, const stir::Scanner* const stir_scanner)
 {
-  const auto num_det_els_in_module = stir_scanner->get_num_axial_crystals_per_block() * stir_scanner->get_num_transaxial_crystals_per_block();
+  // const auto num_det_els_in_module = stir_scanner->get_num_axial_crystals_per_block() * stir_scanner->get_num_transaxial_crystals_per_block();
   // const auto num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   // const auto NUM_MODULES_ALONG_RING = stir_scanner->get_num_transaxial_blocks();
   const auto NUM_MODULES_ALONG_AXIS = stir_scanner->get_num_axial_blocks();
@@ -200,7 +200,6 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
         2*M_PI*radius / stir_scanner->get_num_detectors_per_ring(),
         stir_scanner->get_ring_spacing(),
         };
-    auto box = get_crystal_template(crystal_dims);
 
     {
       rep_module.object = get_detector_module_tmpl(crystal_dims, NUM_CRYSTALS_PER_MODULE, radius);
@@ -272,10 +271,6 @@ get_detection_efficiencies_help(const ProjDataInfoT& stir_proj_data_info,
   const auto num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   const auto NUM_MODULES_ALONG_RING = stir_scanner->get_num_transaxial_blocks();
   const auto NUM_MODULES_ALONG_AXIS = stir_scanner->get_num_axial_blocks();
-  const std::array< std::size_t, 3> NUM_CRYSTALS_PER_MODULE{ stir_scanner->get_num_detector_layers(),
-      stir_scanner->get_num_transaxial_crystals_per_block(),
-      stir_scanner->get_num_axial_crystals_per_block()
-      };
   // TODO could do axial_fan_size based on max ring diff
   auto fan_size = std::ceil(static_cast<float>(stir_proj_data_info.get_num_tangential_poss()) / stir_scanner->get_num_transaxial_crystals_per_block());
   std::cerr << "Module fan_size along the ring : " << fan_size << std::endl;
@@ -289,9 +284,9 @@ get_detection_efficiencies_help(const ProjDataInfoT& stir_proj_data_info,
       {
         for (unsigned int mod2 = 0; mod2 < num_modules; ++mod2)
           {
-            const auto z1 = mod1 % NZ;
+            // const auto z1 = mod1 % NZ;
             const auto a1 = mod1 / NZ;
-            const auto z2 = mod2 % NZ;
+            // const auto z2 = mod2 % NZ;
             const auto a2 = mod2 / NZ;
             if (std::abs(2 * std::abs(int(a1) - int(a2)) - NUM_MODULES_ALONG_RING) > fan_size)
               {
@@ -332,7 +327,7 @@ get_detection_efficiencies_help(const ProjDataInfoT& stir_proj_data_info,
             const stir::DetectionPosition<> pos0{get_stir_det_pos_from_PETSIRD_id(mod_det_el0, stir_scanner)};
             for (std::size_t id1 = 0; id1 < num_det_els_in_module; ++id1)
               {           
-                const petsird_helpers::ModuleAndElement mod_det_el1{mod0, id0};
+                const petsird_helpers::ModuleAndElement mod_det_el1{mod1, id1};
                 const stir::DetectionPosition<> pos1{get_stir_det_pos_from_PETSIRD_id(mod_det_el1, stir_scanner)};
 
                 const stir::DetectionPositionPair<> det_pos_pair(pos0, pos1);
@@ -464,7 +459,7 @@ STIRPETSIRDConvertor::process_data()
   writer.WriteHeader(header_info);
   std::cout << "I am here " << std::endl;
 
-  long num_events_to_process = 1000; // set to -1 to process all
+  long num_events_to_process = -1; // set to -1 to process all
 
   while (num_events_to_process)
     {
