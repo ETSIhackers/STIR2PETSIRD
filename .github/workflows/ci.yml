@@ -48,12 +48,6 @@ jobs:
           cd PETSIRD/model
           yardl generate
 
-      - name: Python
-        run: |
-          pip install ./PETSIRD/python
-          cd python
-          python start.py
-
       - name: Cpp
         run: |
           cd cpp && mkdir -p build && cd build
