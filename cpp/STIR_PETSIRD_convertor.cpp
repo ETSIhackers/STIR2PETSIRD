@@ -433,7 +433,7 @@ get_header()
   petsird::Subject subject;
   subject.id = "123456";
   petsird::Institution institution;
-  institution.name = "ESTI Hackathon";
+  institution.name = "ETSI Hackathon";
   institution.address = "Tampa, FL, USA";
   petsird::ExamInformation exam_info;
   exam_info.subject = subject;
@@ -450,6 +450,26 @@ STIRPETSIRDConvertor::STIRPETSIRDConvertor(const std::string& out_filename, cons
   this->lm_data_ptr = stir::read_from_file<stir::ListModeData>(this->in_filename);
 }
 
+template <class ProjDataInfoT>
+inline
+stir::DetectionPositionPair<>
+get_det_pos_pair_help(const stir::ListEvent& event, const ProjDataInfoT& proj_data_info)
+{
+  stir::DetectionPositionPair<> dp_pair;
+  // first check if we can do a faster conversion
+  if (auto event_discrete_scanner_ptr = dynamic_cast<stir::CListEventScannerWithDiscreteDetectors<ProjDataInfoT> const*>(&event))
+    {
+      event_discrete_scanner_ptr->get_detection_position(dp_pair);
+    }
+  else
+    {
+      // fall back to more general function
+      stir::Bin curr_bin;
+      event.get_bin(curr_bin, proj_data_info);
+      proj_data_info.get_det_pos_pair_for_bin(dp_pair, curr_bin);
+    }
+  return dp_pair;
+}
 
 void
 STIRPETSIRDConvertor::process_data()
@@ -497,7 +517,11 @@ STIRPETSIRDConvertor::process_data()
   petsird::binary::PETSIRDWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
 
+  // unfortunately we need to check cylindrical vs generic ATM
   auto stir_proj_data_info_generic_noarc_sptr = std::dynamic_pointer_cast<stir::ProjDataInfoGenericNoArcCorr const>(stir_proj_data_info_sptr);
+  auto stir_proj_data_info_cylindrical_noarc_sptr = std::dynamic_pointer_cast<stir::ProjDataInfoCylindricalNoArcCorr const>(stir_proj_data_info_sptr);
+  if (!stir_proj_data_info_generic_noarc_sptr && !stir_proj_data_info_cylindrical_noarc_sptr)
+    stir::error("STIR data has to be not arccorrected due to code limitations");
 
   long num_events_to_process = -1; // set to -1 to process all
 
@@ -521,13 +545,12 @@ STIRPETSIRDConvertor::process_data()
         {
           if (num_events_to_process > 0) // we are using -1 when processing all
             num_events_to_process--;
-          // assume it's a cylindrical scanner for now. will need to change later.
-          // auto& event = dynamic_cast<CListEventCylindricalScannerWithDiscreteDetectors const&>(record.event());
 
-          stir::Bin curr_bin; 
-          record.event().get_bin(curr_bin, *stir_proj_data_info_sptr);
           DetectionPositionPair<> dp_pair;
-          stir_proj_data_info_generic_noarc_sptr->get_det_pos_pair_for_bin(dp_pair, curr_bin);
+          if (stir_proj_data_info_cylindrical_noarc_sptr)
+            dp_pair = get_det_pos_pair_help(record.event(), *stir_proj_data_info_cylindrical_noarc_sptr);
+          else
+            dp_pair = get_det_pos_pair_help(record.event(), *stir_proj_data_info_generic_noarc_sptr);
 
           petsird::CoincidenceEvent e;
           e.detector_ids[0] = get_PETSIRD_id_from_stir_det_pos(dp_pair.pos1(), stir_scanner);
