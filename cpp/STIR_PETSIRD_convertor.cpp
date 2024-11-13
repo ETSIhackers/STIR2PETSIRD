@@ -13,7 +13,8 @@
 #include "stir/error.h"
 #include "binary/protocols.h"
 #include "petsird_helpers.h"
-
+#include "stir/Bin.h"
+#include "stir/ProjDataInfoGenericNoArcCorr.h"
 #include "stir/ProjDataInfoBlocksOnCylindrical.h"
 #include "stir/ProjDataInfoCylindrical.h"
 
@@ -68,6 +69,14 @@ petsird::DetectorModule get_detector_module_tmpl(const std::array<float, 3> &  c
   return detector_module;
 }
 
+// NE: Please leave it here to test some ideas for speed-up
+// petsird::ScannerInformation
+// get_scanner_geometry_alternative(const stir::ProjDataInfo& stir_proj_data_info, 
+// const stir::ExamInfo& stir_exam_info)
+// {
+
+// }
+
 // Convert from STIR scanner to petsird scanner info (for now, just cylindrical non-TOF scanners)
 petsird::ScannerInformation
 get_scanner_geometry(const stir::ProjDataInfo& stir_proj_data_info, 
@@ -78,11 +87,42 @@ const stir::ExamInfo& stir_exam_info)
   petsird::ReplicatedDetectorModule rep_module;
 
 if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical * >(&stir_proj_data_info))) {
-  //TODO
-  //rep_module.ids.push_back(module_id++);
-  //rep_module.transforms.push_back(transform);
-} else if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoCylindrical *>(&stir_proj_data_info))) {
+
+// NE: I would like to use some of the stuff in the norm branch, but first merge. 
+      const std::array< int, 3> NUM_CRYSTALS_PER_BLOCK{ stir_scanner->get_num_detector_layers(),
+        stir_scanner->get_num_transaxial_crystals_per_block(),
+        stir_scanner->get_num_axial_crystals_per_block()
+        };
     
+    const std::array<float, 3> crystal_dims{stir_scanner->get_transaxial_crystal_spacing(), 
+        stir_scanner->get_average_depth_of_interaction(),
+        stir_scanner->get_axial_crystal_spacing(),
+        };
+
+    {
+      rep_module.object = get_detector_module_tmpl(crystal_dims, NUM_CRYSTALS_PER_BLOCK, radius);
+      int module_id = 0;
+      std::vector<float> angles;
+      for (unsigned int i = 0; i < stir_scanner->get_num_transaxial_blocks(); ++i)
+      {
+        angles.push_back(static_cast<float>((2 * M_PI * i) / stir_scanner->get_num_transaxial_blocks()));
+      }
+
+      float MODULE_AXIS_SPACING = stir_scanner->get_num_rings() * stir_scanner->get_ring_spacing() / stir_scanner->get_num_axial_blocks(); 
+      
+      for (auto angle : angles)
+        for (unsigned ax_mod = 0; ax_mod < stir_scanner->get_num_axial_blocks(); ++ax_mod)
+        {
+          petsird::RigidTransformation transform{ { { std::cos(angle), std::sin(angle), 0.F, 0.F },
+                                                    { -std::sin(angle), std::cos(angle), 0.F, 0.F },
+                                                    { 0.F, 0.F, 1.F, MODULE_AXIS_SPACING * ax_mod } } };
+          rep_module.ids.push_back(module_id++);
+          rep_module.transforms.push_back(transform);
+        }
+    }
+
+} else if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoCylindrical *>(&stir_proj_data_info))) {
+     
     const std::array< int, 3> NUM_CRYSTALS_PER_MODULE{ stir_scanner->get_num_detector_layers(),
         stir_scanner->get_num_transaxial_crystals_per_block(),
         stir_scanner->get_num_axial_crystals_per_block()
@@ -92,8 +132,6 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
         2*M_PI*radius / stir_scanner->get_num_detectors_per_ring(),
         stir_scanner->get_ring_spacing(),
         };
-    auto box = get_crystal_template(crystal_dims);
-
     {
       rep_module.object = get_detector_module_tmpl(crystal_dims, NUM_CRYSTALS_PER_MODULE, radius);
       int module_id = 0;
@@ -208,7 +246,8 @@ STIRPETSIRDConvertor::process_data()
 
   petsird::binary::PETSIRDWriter writer(this->out_filename);
   writer.WriteHeader(header_info);
-  std::cout << "I am here " << std::endl; 
+
+  auto& stir_proj_data_info_generic_noarc_sptr = dynamic_cast<ProjDataInfoGenericNoArcCorr const&>(stir_proj_data_info_sptr);
   while (true)
     {
 
@@ -228,12 +267,15 @@ STIRPETSIRDConvertor::process_data()
       if (record.is_event())
         {
           // assume it's a cylindrical scanner for now. will need to change later.
-          auto& event = dynamic_cast<CListEventCylindricalScannerWithDiscreteDetectors const&>(record.event());
+          // auto& event = dynamic_cast<CListEventCylindricalScannerWithDiscreteDetectors const&>(record.event());
 
+          stir::Bin curr_bin; 
+          record.event().get_bin(curr_bin, stir_proj_data_info_sptr); 
           DetectionPositionPair<> dp_pair;
-          event.get_detection_position(dp_pair);
+          stir_proj_data_info_generic_noarc_sptr.get_det_pos_pair_for_bin(dp_pair, curr_bin); 
 
           petsird::CoincidenceEvent e;
+          
           e.detector_ids[0]
               = dp_pair.pos1().tangential_coord() + dp_pair.pos1().axial_coord() * stir_proj_data_info_sptr.get_scanner_ptr()->get_num_detectors_per_ring();
           e.detector_ids[1]
@@ -244,6 +286,12 @@ STIRPETSIRDConvertor::process_data()
           prompts_this_blk.push_back(e);
           ++num_events;
         } // end of spatial event processing
+        if (num_events%100000 == 0)
+        {
+          std::cout << num_events << std::endl; 
+        }
+        // if (num_events == 250)
+        //   break; 
     }     // end of while loop over all events
     writer.EndTimeBlocks();
     writer.Close();
