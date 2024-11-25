@@ -497,6 +497,7 @@ STIRPETSIRDConvertor::process_data()
   petsird::GantryMovementTimeBlock gantry_movement_time_blk;
 
   std::vector<petsird::CoincidenceEvent> prompts_this_blk;
+  std::vector<petsird::CoincidenceEvent> delayeds_this_blk;
 
   double current_time = 0.0;
   unsigned long num_events = 0;
@@ -538,8 +539,10 @@ STIRPETSIRDConvertor::process_data()
           current_time = record.time().get_time_in_millisecs();
           event_time_blk.start = current_time;
           event_time_blk.prompt_events = prompts_this_blk;
+          event_time_blk.delayed_events = delayeds_this_blk;
           writer.WriteTimeBlocks(event_time_blk);
           prompts_this_blk.clear();
+          delayeds_this_blk.clear();
         }
       if (record.is_event())
         {
@@ -558,8 +561,15 @@ STIRPETSIRDConvertor::process_data()
           e.energy_indices[0] = 0;
           e.energy_indices[1] = 0;
           e.tof_idx = dp_pair.timing_pos() - stir_proj_data_info_sptr->get_min_tof_pos_num();
-          prompts_this_blk.push_back(e);
-          ++num_events;
+          if (record.event().is_prompt())
+            {
+              prompts_this_blk.push_back(e);
+              ++num_events;
+            }
+          else
+            {
+              delayeds_this_blk.push_back(e);
+            }
         } // end of spatial event processing
         if (num_events%100000 == 0)
         {
