@@ -1,4 +1,23 @@
-// STIR_PETSIRD_convertor.h
+/*!
+  \file
+  \brief Declarations of class STIRPETSIRDConvertor
+
+  \author Robert Twyman Skelly
+  \author Eve Lennie
+  \author Nikos Eftimiou
+  \author Kris Thielemans
+
+*/
+/*
+    Copyright (C) 2023, Prescient Imaging
+    Copyright (C) 2023, University of Sheffield
+    Copyright (C) 2024, MGH
+    Copyright (C) 2024, University College of London
+    This file is part of STIR.
+
+    SPDX-License-Identifier: Apache-2.0
+*/
+
 #ifndef STIRPETSIRDCONVERTOR_H
 #define STIRPETSIRDCONVERTOR_H
 

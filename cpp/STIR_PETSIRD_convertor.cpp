@@ -1,3 +1,23 @@
+/*!
+  \file
+  \brief Implementation of class STIRPETSIRDConvertor
+
+  \author Nikos Efthimiou
+  \author Eve Lennie
+  \author Robert Twyman Skelly
+  \author Kris Thielemans
+
+*/
+/*
+    Copyright (C) 2023, Prescient Imaging
+    Copyright (C) 2023, University of Sheffield
+    Copyright (C) 2024, MGH
+    Copyright (C) 2024, University College of London
+    This file is part of STIR.
+
+    SPDX-License-Identifier: Apache-2.0
+*/
+
 #include <iostream>
 #include <string>
 #include <fstream>
