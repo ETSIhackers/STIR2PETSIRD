@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12.0)
-project(STIR2PETSIRD VERSION 0.1.0)
+project(STIR2PETSIRD VERSION 0.3.0)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -10,7 +10,7 @@ else()
 endif()
 
 find_package(STIR REQUIRED)
-if (STIR_VERSION VERSION_LESS 5.2.0) # probably will need 6.0 really
+if (STIR_VERSION VERSION_LESS 6.0.0) # probably will need 6.0 really
   message(FATAL_ERROR "Your STIR version is very old (${STIR_VERSION}). Use 6.0 or later")
 endif()
 
@@ -21,6 +21,8 @@ add_executable(STIR_PETSIRD_convertor STIR_PETSIRD_convertor.cpp ${STIR_REGISTRI
 target_include_directories(STIR_PETSIRD_convertor PUBLIC ${PETSIRD_dir})
 # needed for helpers
 target_include_directories(STIR_PETSIRD_convertor PUBLIC ${PETSIRD_dir}/..)
+target_include_directories(STIR_PETSIRD_convertor PUBLIC ${PETSIRD_dir}/../helpers/include)
+
 target_link_libraries(STIR_PETSIRD_convertor PUBLIC petsird_generated ${STIR_LIBRARIES})
 install(TARGETS STIR_PETSIRD_convertor DESTINATION bin)
 
