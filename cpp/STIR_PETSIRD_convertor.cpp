@@ -112,7 +112,7 @@ stir::DetectionPosition<> get_stir_det_pos_from_PETSIRD_id(const petsird_helpers
       stir_scanner->get_num_axial_crystals_per_block()
       };
   const auto ax_mod = exp_det_bin.module_index % NUM_MODULES_ALONG_AXIS;
-  const auto tang_mod = exp_det_bin.element_index / NUM_MODULES_ALONG_AXIS;
+  const auto tang_mod = exp_det_bin.module_index / NUM_MODULES_ALONG_AXIS;
 
   const auto inds = get_indices_from_id(exp_det_bin.element_index, NUM_CRYSTALS_PER_MODULE);
   const stir::DetectionPosition<> pos(inds[1] + tang_mod * NUM_CRYSTALS_PER_MODULE[1],
@@ -174,7 +174,6 @@ petsird::DetectorModule get_detector_module_tmpl(const std::array<float, 3> &  c
     const auto N0 = NUM_CRYSTALS_PER_MODULE[0];
     const auto N1 = NUM_CRYSTALS_PER_MODULE[1];
     const auto N2 = NUM_CRYSTALS_PER_MODULE[2];
-    int id = 0;
     for (int rep0 = 0; rep0 < N0; ++rep0)
       for (int rep1 = 0; rep1 < N1; ++rep1)
         for (int rep2 = 0; rep2 < N2; ++rep2)
@@ -183,10 +182,6 @@ petsird::DetectorModule get_detector_module_tmpl(const std::array<float, 3> &  c
                                                       { 0.0, 1.0, 0.0, (rep1 - N1 / 2) * crystal_length[1] },
                                                       { 0.0, 0.0, 1.0, (rep2 - N2 / 2) * crystal_length[2] } } };
             rep_volume.transforms.push_back(transform);
-#ifndef NDEBUG
-            std::array<int, 3> inds = {rep0, rep1, rep2};            
-            assert(inds == get_indices_from_id(id, NUM_CRYSTALS_PER_MODULE));
-#endif
           }
   }
 
@@ -196,18 +191,11 @@ petsird::DetectorModule get_detector_module_tmpl(const std::array<float, 3> &  c
   return detector_module;
 }
 
-// NE: Please leave it here to test some ideas for speed-up
-// petsird::ScannerInformation
-// get_scanner_geometry_alternative(const stir::ProjDataInfo& stir_proj_data_info, 
-// const stir::ExamInfo& stir_exam_info)
-// {
-
-// }
-
 // Convert from STIR scanner to petsird scanner info (for now, just cylindrical non-TOF scanners)
-petsird::ScannerInformation
-get_scanner_geometry(const stir::ProjDataInfo& stir_proj_data_info, 
-const stir::ExamInfo& stir_exam_info)
+void
+set_scanner_geometry(petsird::ScannerInformation& scanner_info,
+                     const stir::ProjDataInfo& stir_proj_data_info, 
+                     const stir::ExamInfo& stir_exam_info)
 {
   const stir::Scanner* stir_scanner = stir_proj_data_info.get_scanner_ptr(); 
   const float radius = stir_scanner->get_inner_ring_radius();
@@ -282,7 +270,6 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
     std::cout << "This should never happen! Abort" << std::endl;
 }
 
- petsird::ScannerInformation scanner_info;
  auto& scanner_geometry = scanner_info.scanner_geometry;
  scanner_geometry.replicated_modules.push_back(rep_module);
 
@@ -326,7 +313,6 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
   // TODO scanner_info.coincidence_policy = petsird::CoincidencePolicy::kRejectMultiples;
   scanner_info.delayed_coincidences_are_stored = true;
   scanner_info.triple_events_are_stored = false;
-  return scanner_info;
 }
 
 template <class ProjDataInfoT>
@@ -544,15 +530,14 @@ STIRPETSIRDConvertor::process_data()
   // Setup the petsird header info
   petsird::Header header_info = get_header();
   auto& scanner_info = header_info.scanner;
-  scanner_info = get_scanner_geometry(*stir_proj_data_info_sptr, 
-                                      *stir_exam_info_sptr);
-
   const auto num_types_of_modules = 1;
   // Pre-allocate various structures to have the correct size for num_types_of_modules
   // (We will still have to set descent values into each of these.)
   petsird_helpers::create::initialize_scanner_information_dimensions(scanner_info, num_types_of_modules,
                                                                      /* allocate_detection_bin_efficiencies = */ false,
                                                                      /* allocate_module_pair_efficiencies = */ this->normalisation_sptr != nullptr);
+  set_scanner_geometry(scanner_info, *stir_proj_data_info_sptr,
+                       *stir_exam_info_sptr);
 
   if (this->normalisation_sptr)
     {
