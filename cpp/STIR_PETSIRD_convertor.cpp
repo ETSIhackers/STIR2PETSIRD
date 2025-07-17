@@ -192,7 +192,7 @@ petsird::DetectorModule get_detector_module_tmpl(const std::array<float, 3> &  c
         for (int rep2 = 0; rep2 < N2; ++rep2)
           {
             petsird::RigidTransformation transform{ { { 1.0, 0.0, 0.0, RADIUS + rep0 * crystal_length[0] },
-                                                      { 0.0, 1.0, 0.0, (rep1 - N1 / 2) * crystal_length[1] },
+                                                      { 0.0, 1.0, 0.0, -(rep1 - N1 / 2) * crystal_length[1] }, // somewhat surprising minus sign due to how we rotate (KT thinks)
                                                       { 0.0, 0.0, 1.0, (rep2 - N2 / 2) * crystal_length[2] } } };
             rep_volume.transforms.push_back(transform);
           }
@@ -330,7 +330,7 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
     for (int r=0; r< stir_scanner->get_num_rings(); ++r)
       for (int d=0; d < stir_scanner->get_num_detectors_per_ring(); ++d)
         {
-          pdi.find_cartesian_coordinates_given_scanner_coordinates(coord_0, coord_1, r, 0, d, 0, 0);
+          pdi.find_cartesian_coordinates_given_scanner_coordinates(coord_0, coord_1, r, 0, d, 0, 1);
           stir::DetectionPosition<> det_pos{d, r, 0};
           const auto det_bin = get_PETSIRD_id_from_stir_det_pos(det_pos, stir_scanner);
           const petsird::TypeOfModule type_of_module{0};
@@ -625,7 +625,7 @@ STIRPETSIRDConvertor::process_data()
           e.detection_bins[0] = get_PETSIRD_id_from_stir_det_pos(dp_pair.pos1(), stir_scanner);
           e.detection_bins[1] = get_PETSIRD_id_from_stir_det_pos(dp_pair.pos2(), stir_scanner);
           e.tof_idx = dp_pair.timing_pos() - stir_proj_data_info_sptr->get_min_tof_pos_num();
-          // test
+#if 0 // redundant test, so commented out
           {
             const petsird::TypeOfModule type_of_module{0};
             const auto expanded_detection_bin0
@@ -639,10 +639,19 @@ STIRPETSIRDConvertor::process_data()
             const auto p1 = make_coordinate(mean_pos0.c[2], -mean_pos0.c[0], -mean_pos0.c[1]);
             const auto p2 = make_coordinate(mean_pos1.c[2], -mean_pos1.c[0], -mean_pos1.c[1]);
             const auto LOR = record.event().get_LOR();
-            const auto diff0 = LOR.p1() - p1;
-            const auto diff1 = LOR.p2() - p2;
-            std::cout << LOR.p1() << LOR.p2() << p1 << p2<< diff0 << diff1 << "\n";
+            bool swap = dp_pair.timing_pos() < 0; // get_LOR() will swap p1,p2 if timing_pos changes sign
+            auto diff0 = (swap ? LOR.p1() : LOR.p2()) - p1;
+            auto diff1 = (swap ? LOR.p2() : LOR.p1()) - p2;
+            if (dp_pair.timing_pos() == 0 && norm(diff0) > 100) // if timing_pos == 0, it could be either case.
+              {
+                swap = !swap;
+                diff0 = (swap ? LOR.p1() : LOR.p2()) - p1;
+                diff1 = (swap ? LOR.p2() : LOR.p1()) - p2;
+              }
+
+            std::cout << dp_pair.timing_pos() << LOR.p1() << LOR.p2() << p1 << p2<< diff0 << diff1 << "\n";
           }
+#endif
           if (record.event().is_prompt())
             {
               prompts_this_blk.push_back(e);
