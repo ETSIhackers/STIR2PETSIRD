@@ -45,10 +45,23 @@
 #include "stir/ProjDataInfoBlocksOnCylindrical.h"
 #include "stir/ProjDataInfoCylindrical.h"
 #include "stir/stream.h"
+#include "stir/DetectionPosition.h"
 
 #include "STIR_PETSIRD_convertor.h"
 
 constexpr float speed_of_light_mm_per_ps = 0.299792458F;
+
+static petsird::Coordinate mean_position(const petsird::BoxShape& box_shape)
+{
+  petsird::Coordinate mean;
+  mean.c = {0, 0, 0};
+  for (auto& corner : box_shape.corners)
+    {
+      mean.c += corner.c;
+    }
+  mean.c /= box_shape.corners.size();
+  return mean;
+}
 
 //! return a cuboid volume
 petsird::BoxSolidVolume get_crystal_template
@@ -209,8 +222,9 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
         stir_scanner->get_num_axial_crystals_per_block()
         };
     
-    const std::array<float, 3> crystal_dims{stir_scanner->get_transaxial_crystal_spacing(), 
+    const std::array<float, 3> crystal_dims{
         stir_scanner->get_average_depth_of_interaction(),
+        stir_scanner->get_transaxial_crystal_spacing(),
         stir_scanner->get_axial_crystal_spacing(),
         };
 
@@ -309,7 +323,26 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
     all_event_energy_bin_edges[type_of_module] = event_energy_bin_edges;
     all_event_energy_resolutions[type_of_module] = stir_scanner->get_energy_resolution();    // as fraction of 511 (e.g. 0.11F)
   }
-
+  // test
+  {
+    stir::CartesianCoordinate3D<float> coord_0, coord_1;
+    auto& pdi = dynamic_cast<const stir::ProjDataInfoCylindricalNoArcCorr &>(stir_proj_data_info);
+    for (int r=0; r< stir_scanner->get_num_rings(); ++r)
+      for (int d=0; d < stir_scanner->get_num_detectors_per_ring(); ++d)
+        {
+          pdi.find_cartesian_coordinates_given_scanner_coordinates(coord_0, coord_1, r, 0, d, 0, 0);
+          stir::DetectionPosition<> det_pos{d, r, 0};
+          const auto det_bin = get_PETSIRD_id_from_stir_det_pos(det_pos, stir_scanner);
+          const petsird::TypeOfModule type_of_module{0};
+          const auto expanded_detection_bin
+            = petsird_helpers::expand_detection_bin(scanner_info, type_of_module, det_bin);
+          const auto box_shape = petsird_helpers::geometry::get_detecting_box(scanner_info, type_of_module, expanded_detection_bin);
+          const auto mean_pos = mean_position(box_shape);
+          const auto p0 = stir::make_coordinate(mean_pos.c[2], -mean_pos.c[0], -mean_pos.c[1]);
+          const auto diff = coord_0 - p0;
+          std::cout << det_pos << coord_0 << p0 << diff << "\n";
+        }
+  }
   // TODO scanner_info.coincidence_policy = petsird::CoincidencePolicy::kRejectMultiples;
   scanner_info.delayed_coincidences_are_stored = true;
   scanner_info.triple_events_are_stored = false;
@@ -488,6 +521,7 @@ get_det_pos_pair_help(const stir::ListEvent& event, const ProjDataInfoT& proj_da
   return dp_pair;
 }
 
+
 void
 STIRPETSIRDConvertor::process_data()
 {
@@ -591,6 +625,24 @@ STIRPETSIRDConvertor::process_data()
           e.detection_bins[0] = get_PETSIRD_id_from_stir_det_pos(dp_pair.pos1(), stir_scanner);
           e.detection_bins[1] = get_PETSIRD_id_from_stir_det_pos(dp_pair.pos2(), stir_scanner);
           e.tof_idx = dp_pair.timing_pos() - stir_proj_data_info_sptr->get_min_tof_pos_num();
+          // test
+          {
+            const petsird::TypeOfModule type_of_module{0};
+            const auto expanded_detection_bin0
+              = petsird_helpers::expand_detection_bin(scanner_info, type_of_module, e.detection_bins[0]);
+            const auto expanded_detection_bin1
+              = petsird_helpers::expand_detection_bin(scanner_info, type_of_module, e.detection_bins[1]);
+            const auto box_shape0 = petsird_helpers::geometry::get_detecting_box(scanner_info, type_of_module, expanded_detection_bin0);
+            const auto mean_pos0 = mean_position(box_shape0);
+            const auto box_shape1 = petsird_helpers::geometry::get_detecting_box(scanner_info, type_of_module, expanded_detection_bin1);
+            const auto mean_pos1 = mean_position(box_shape1);
+            const auto p1 = make_coordinate(mean_pos0.c[2], -mean_pos0.c[0], -mean_pos0.c[1]);
+            const auto p2 = make_coordinate(mean_pos1.c[2], -mean_pos1.c[0], -mean_pos1.c[1]);
+            const auto LOR = record.event().get_LOR();
+            const auto diff0 = LOR.p1() - p1;
+            const auto diff1 = LOR.p2() - p2;
+            std::cout << LOR.p1() << LOR.p2() << p1 << p2<< diff0 << diff1 << "\n";
+          }
           if (record.event().is_prompt())
             {
               prompts_this_blk.push_back(e);
