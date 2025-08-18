@@ -423,7 +423,7 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner,
 
                 const stir::DetectionPositionPair<> det_pos_pair(pos0, pos1);
                 stir::Bin bin;
-                float& eff = module_pair_efficiencies.values(id0, 0, id1, 0);
+                float& eff = module_pair_efficiencies.values(id0, id1);
                 if (stir_proj_data_info.get_bin_for_det_pos_pair(bin, det_pos_pair).succeeded())
                   {
                     // still need to check if within limits
