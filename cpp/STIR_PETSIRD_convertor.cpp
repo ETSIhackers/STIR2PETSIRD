@@ -120,9 +120,9 @@ stir::DetectionPosition<> get_stir_det_pos_from_PETSIRD_id(const petsird_helpers
   // const auto num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   // const auto NUM_MODULES_ALONG_RING = stir_scanner->get_num_transaxial_blocks();
   const auto NUM_MODULES_ALONG_AXIS = stir_scanner->get_num_axial_blocks();
-  const std::array<uint32_t, 3> NUM_CRYSTALS_PER_MODULE{ stir_scanner->get_num_detector_layers(),
-      stir_scanner->get_num_transaxial_crystals_per_block(),
-      stir_scanner->get_num_axial_crystals_per_block()
+  const std::array<uint32_t, 3> NUM_CRYSTALS_PER_MODULE{ static_cast<unsigned>(stir_scanner->get_num_detector_layers()),
+    static_cast<unsigned>(stir_scanner->get_num_transaxial_crystals_per_block()),
+    static_cast<unsigned>(stir_scanner->get_num_axial_crystals_per_block())
       };
   const auto ax_mod = exp_det_bin.module_index % NUM_MODULES_ALONG_AXIS;
   const auto tang_mod = exp_det_bin.module_index / NUM_MODULES_ALONG_AXIS;
@@ -137,13 +137,13 @@ stir::DetectionPosition<> get_stir_det_pos_from_PETSIRD_id(const petsird_helpers
 inline
 petsird::DetectionBin get_PETSIRD_id_from_stir_det_pos(const stir::DetectionPosition<>& det_pos, const stir::Scanner* const stir_scanner)
 {
-  const auto num_det_els_in_module = stir_scanner->get_num_axial_crystals_per_block() * stir_scanner->get_num_transaxial_crystals_per_block();
+  const auto num_det_els_in_module = static_cast<unsigned>(stir_scanner->get_num_axial_crystals_per_block() * stir_scanner->get_num_transaxial_crystals_per_block());
   // const auto num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   //const auto NUM_MODULES_ALONG_RING = stir_scanner->get_num_transaxial_blocks();
-  const auto NUM_MODULES_ALONG_AXIS = stir_scanner->get_num_axial_blocks();
-  const std::array< std::size_t, 3> NUM_CRYSTALS_PER_MODULE{ stir_scanner->get_num_detector_layers(),
-      stir_scanner->get_num_transaxial_crystals_per_block(),
-      stir_scanner->get_num_axial_crystals_per_block()
+  const auto NUM_MODULES_ALONG_AXIS = static_cast<unsigned>(stir_scanner->get_num_axial_blocks());
+  const std::array< std::size_t, 3> NUM_CRYSTALS_PER_MODULE{ static_cast<unsigned>(stir_scanner->get_num_detector_layers()),
+    static_cast<unsigned>(stir_scanner->get_num_transaxial_crystals_per_block()),
+    static_cast<unsigned>(stir_scanner->get_num_axial_crystals_per_block())
       };
 
   std::array<std::size_t, 3> inds;
@@ -163,9 +163,9 @@ check_id_conversion(const stir::Scanner* const stir_scanner)
 {
   const auto num_det_els_in_module = stir_scanner->get_num_axial_crystals_per_block() * stir_scanner->get_num_transaxial_crystals_per_block();
   stir::DetectionPosition<> det_pos;
-  for (det_pos.radial_coord() = 0; det_pos.radial_coord() < stir_scanner->get_num_detector_layers(); ++det_pos.radial_coord())
-    for (det_pos.axial_coord() = 0; det_pos.axial_coord() < stir_scanner->get_num_rings(); ++det_pos.axial_coord())
-      for (det_pos.tangential_coord() = 0; det_pos.tangential_coord() < stir_scanner->get_num_detectors_per_ring(); ++det_pos.tangential_coord())
+  for (det_pos.radial_coord() = 0; det_pos.radial_coord() < static_cast<unsigned>(stir_scanner->get_num_detector_layers()); ++det_pos.radial_coord())
+    for (det_pos.axial_coord() = 0; det_pos.axial_coord() < static_cast<unsigned>(stir_scanner->get_num_rings()); ++det_pos.axial_coord())
+      for (det_pos.tangential_coord() = 0; det_pos.tangential_coord() < static_cast<unsigned>(stir_scanner->get_num_detectors_per_ring()); ++det_pos.tangential_coord())
         {
           const auto id{get_PETSIRD_id_from_stir_det_pos(det_pos, stir_scanner)};
           const petsird_helpers::ExpandedDetectionBin exp_det_bin{id / num_det_els_in_module, id % num_det_els_in_module, 0};
@@ -231,7 +231,7 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
     {
       rep_module.object = get_detector_module_tmpl(crystal_dims, NUM_CRYSTALS_PER_BLOCK, radius);
       std::vector<float> angles;
-      for (unsigned int i = 0; i < stir_scanner->get_num_transaxial_blocks(); ++i)
+      for (int i = 0; i < stir_scanner->get_num_transaxial_blocks(); ++i)
       {
         angles.push_back(static_cast<float>((2 * M_PI * i) / stir_scanner->get_num_transaxial_blocks()));
       }
@@ -239,7 +239,7 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
       float MODULE_AXIS_SPACING = stir_scanner->get_num_rings() * stir_scanner->get_ring_spacing() / stir_scanner->get_num_axial_blocks(); 
       
       for (auto angle : angles)
-        for (unsigned ax_mod = 0; ax_mod < stir_scanner->get_num_axial_blocks(); ++ax_mod)
+        for (int ax_mod = 0; ax_mod < stir_scanner->get_num_axial_blocks(); ++ax_mod)
         {
           petsird::RigidTransformation transform{ { { std::cos(angle), std::sin(angle), 0.F, 0.F },
                                                     { -std::sin(angle), std::cos(angle), 0.F, 0.F },
@@ -256,14 +256,14 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
         };
     
     const std::array<float, 3> crystal_dims{stir_scanner->get_average_depth_of_interaction(), 
-        2*M_PI*radius / stir_scanner->get_num_detectors_per_ring(),
+      static_cast<float>(2*M_PI*radius / stir_scanner->get_num_detectors_per_ring()),
         stir_scanner->get_ring_spacing(),
         };
 
     {
       rep_module.object = get_detector_module_tmpl(crystal_dims, NUM_CRYSTALS_PER_MODULE, radius);
       std::vector<float> angles;
-      for (unsigned int i = 0; i < stir_scanner->get_num_transaxial_blocks(); ++i)
+      for (int i = 0; i < stir_scanner->get_num_transaxial_blocks(); ++i)
       {
         angles.push_back(static_cast<float>((2 * M_PI * i) / stir_scanner->get_num_transaxial_blocks()));
       }
@@ -271,7 +271,7 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
       float MODULE_AXIS_SPACING = stir_scanner->get_num_rings() * stir_scanner->get_ring_spacing() / stir_scanner->get_num_axial_blocks(); 
       
       for (auto angle : angles)
-        for (unsigned ax_mod = 0; ax_mod < stir_scanner->get_num_axial_blocks(); ++ax_mod)
+        for (int ax_mod = 0; ax_mod < stir_scanner->get_num_axial_blocks(); ++ax_mod)
         {
           petsird::RigidTransformation transform{ { { std::cos(angle), std::sin(angle), 0.F, 0.F },
                                                     { -std::sin(angle), std::cos(angle), 0.F, 0.F },
@@ -327,8 +327,8 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
   {
     stir::CartesianCoordinate3D<float> coord_0, coord_1;
     auto& pdi = dynamic_cast<const stir::ProjDataInfoCylindricalNoArcCorr &>(stir_proj_data_info);
-    for (int r=0; r< stir_scanner->get_num_rings(); ++r)
-      for (int d=0; d < stir_scanner->get_num_detectors_per_ring(); ++d)
+    for (unsigned int r=0; r< static_cast<unsigned>(stir_scanner->get_num_rings()); ++r)
+      for (unsigned int d=0; d < static_cast<unsigned>(stir_scanner->get_num_detectors_per_ring()); ++d)
         {
           pdi.find_cartesian_coordinates_given_scanner_coordinates(coord_0, coord_1, r, 0, d, 0, 1);
           stir::DetectionPosition<> det_pos{d, r, 0};
@@ -357,9 +357,9 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner,
 {
   const stir::Scanner* stir_scanner = stir_proj_data_info.get_scanner_ptr(); 
 
-  const auto num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
-  const auto NUM_MODULES_ALONG_RING = stir_scanner->get_num_transaxial_blocks();
-  const auto NUM_MODULES_ALONG_AXIS = stir_scanner->get_num_axial_blocks();
+  const auto num_modules = static_cast<unsigned>(stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks());
+  const auto NUM_MODULES_ALONG_RING = static_cast<unsigned>(stir_scanner->get_num_transaxial_blocks());
+  const auto NUM_MODULES_ALONG_AXIS = static_cast<unsigned>(stir_scanner->get_num_axial_blocks());
   // TODO could do axial_fan_size based on max ring diff
   auto fan_size = std::ceil(static_cast<float>(stir_proj_data_info.get_num_tangential_poss()) / stir_scanner->get_num_transaxial_crystals_per_block());
   std::cerr << "Module fan_size along the ring : " << fan_size << std::endl;
@@ -379,7 +379,7 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner,
             const auto a1 = mod1 / NZ;
             // const auto z2 = mod2 % NZ;
             const auto a2 = mod2 / NZ;
-            if (std::abs(2 * std::abs(int(a1) - int(a2)) - NUM_MODULES_ALONG_RING) > fan_size)
+            if (std::abs(2 * std::abs(int(a1) - int(a2)) - int(NUM_MODULES_ALONG_RING)) > fan_size)
               {
                 module_pair_SGID_LUT(mod1, mod2) = -1;
               }
@@ -394,14 +394,15 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner,
       = (*scanner.detection_efficiencies.module_pair_efficiencies_vectors)[type_of_module][type_of_module];
   module_pair_efficiencies_vector.reserve(num_SGIDs);
 
-  const auto num_det_els_in_module = stir_scanner->get_num_axial_crystals_per_block() * stir_scanner->get_num_transaxial_crystals_per_block();
-  const auto num_energy_bins = 1; // stir_exam_info.get_num_energy_bins();
+  const auto num_det_els_in_module = static_cast<unsigned>(stir_scanner->get_num_axial_crystals_per_block() * stir_scanner->get_num_transaxial_crystals_per_block());
+  const auto num_energy_bins = 1U; // stir_exam_info.get_num_energy_bins();
   for (int SGID = 0; SGID < num_SGIDs; ++SGID)
     {
       // extract first module_pair for this SGID.
+      // TODO should check that it is found
+      const auto LUT_iter = std::find(module_pair_SGID_LUT.begin(), module_pair_SGID_LUT.end(), SGID);
       const auto module_pair_idx =
-        std::find(module_pair_SGID_LUT.begin(), module_pair_SGID_LUT.end(), SGID) -
-        module_pair_SGID_LUT.begin();
+        static_cast<unsigned>(LUT_iter - module_pair_SGID_LUT.begin());
       const auto mod0 = module_pair_idx / num_modules;
       const auto mod1 = module_pair_idx % num_modules;
       assert(module_pair_SGID_LUT(mod0, mod1) == SGID);
@@ -412,11 +413,11 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner,
 
       // find values from STIR
       {
-        for (std::size_t id0 = 0; id0 < num_det_els_in_module; ++id0)
+        for (unsigned id0 = 0; id0 < num_det_els_in_module; ++id0)
           {
             const petsird_helpers::ExpandedDetectionBin expanded_det_bin0{mod0, id0, 0};
             const stir::DetectionPosition<> pos0{get_stir_det_pos_from_PETSIRD_id(expanded_det_bin0, stir_scanner)};
-            for (std::size_t id1 = 0; id1 < num_det_els_in_module; ++id1)
+            for (unsigned id1 = 0; id1 < num_det_els_in_module; ++id1)
               {           
                 const petsird_helpers::ExpandedDetectionBin expanded_det_bin1{mod1, id1, 0};
                 const stir::DetectionPosition<> pos1{get_stir_det_pos_from_PETSIRD_id(expanded_det_bin1, stir_scanner)};
