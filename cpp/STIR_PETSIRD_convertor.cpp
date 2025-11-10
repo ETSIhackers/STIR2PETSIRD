@@ -37,7 +37,7 @@
 #include "stir/KeyParser.h"
 #include "stir/IO/read_from_file.h"
 #include "stir/error.h"
-#include "binary/protocols.h"
+#include "petsird/binary/protocols.h"
 #include "petsird_helpers.h"
 #include "petsird_helpers/create.h"
 #include "petsird_helpers/geometry.h"
@@ -365,7 +365,7 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
       }
   }
   // TODO scanner_info.coincidence_policy = petsird::CoincidencePolicy::kRejectMultiples;
-  scanner_info.delayed_coincidences_are_stored = true;
+  scanner_info.delayed_events_are_stored = true;
   scanner_info.triple_events_are_stored = false;
 }
 
@@ -568,9 +568,9 @@ STIRPETSIRDConvertor::process_data()
   event_time_blk.time_interval.start = 0;
   event_time_blk.prompt_events.resize(1);
   event_time_blk.prompt_events[0].resize(1);
-  event_time_blk.delayed_events = std::make_optional<std::vector<std::vector<petsird::ListOfCoincidenceEvents>>>();
-  (*event_time_blk.delayed_events).resize(1);
-  (*event_time_blk.delayed_events)[0].resize(1);
+  event_time_blk.delayed_events = std::vector<std::vector<petsird::ListOfCoincidenceEvents>>();
+  event_time_blk.delayed_events.resize(1);
+  event_time_blk.delayed_events[0].resize(1);
 
 
   petsird::ExternalSignalTimeBlock signal_time_blk;
@@ -626,7 +626,7 @@ STIRPETSIRDConvertor::process_data()
           current_time = record.time().get_time_in_millisecs();
           event_time_blk.time_interval.stop = current_time;
           event_time_blk.prompt_events[0][0] = prompts_this_blk;
-          (*event_time_blk.delayed_events)[0][0] = delayeds_this_blk;
+          event_time_blk.delayed_events[0][0] = delayeds_this_blk;
           writer.WriteTimeBlocks(event_time_blk);
           event_time_blk.time_interval.start = current_time;
           prompts_this_blk.clear();
