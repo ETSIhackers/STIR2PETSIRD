@@ -326,22 +326,48 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
   // test
   {
     stir::CartesianCoordinate3D<float> coord_0, coord_1;
-    auto& pdi = dynamic_cast<const stir::ProjDataInfoCylindricalNoArcCorr &>(stir_proj_data_info);
-    for (unsigned int r=0; r< static_cast<unsigned>(stir_scanner->get_num_rings()); ++r)
-      for (unsigned int d=0; d < static_cast<unsigned>(stir_scanner->get_num_detectors_per_ring()); ++d)
-        {
-          pdi.find_cartesian_coordinates_given_scanner_coordinates(coord_0, coord_1, r, 0, d, 0, 1);
-          stir::DetectionPosition<> det_pos{d, r, 0};
-          const auto det_bin = get_PETSIRD_id_from_stir_det_pos(det_pos, stir_scanner);
-          const petsird::TypeOfModule type_of_module{0};
-          const auto expanded_detection_bin
-            = petsird_helpers::expand_detection_bin(scanner_info, type_of_module, det_bin);
-          const auto box_shape = petsird_helpers::geometry::get_detecting_box(scanner_info, type_of_module, expanded_detection_bin);
-          const auto mean_pos = mean_position(box_shape);
-          const auto p0 = stir::make_coordinate(mean_pos.c[2], -mean_pos.c[0], -mean_pos.c[1]);
-          const auto diff = coord_0 - p0;
-          std::cout << det_pos << coord_0 << p0 << diff << "\n";
-        }
+    if (auto pdi_ptr = dynamic_cast<const stir::ProjDataInfoGenericNoArcCorr*>(&stir_proj_data_info))
+      {
+        auto& pdi = *pdi_ptr;
+        for (unsigned int r = 0; r < static_cast<unsigned>(stir_scanner->get_num_rings()); ++r)
+          for (unsigned int d = 0; d < static_cast<unsigned>(stir_scanner->get_num_detectors_per_ring()); ++d)
+            {
+              pdi.find_cartesian_coordinates_given_scanner_coordinates(coord_0, coord_1, r, 0, d, 0);
+              stir::DetectionPosition<> det_pos{ d, r, 0 };
+              const auto det_bin = get_PETSIRD_id_from_stir_det_pos(det_pos, stir_scanner);
+              const petsird::TypeOfModule type_of_module{ 0 };
+              const auto expanded_detection_bin = petsird_helpers::expand_detection_bin(scanner_info, type_of_module, det_bin);
+              const auto box_shape
+                  = petsird_helpers::geometry::get_detecting_box(scanner_info, type_of_module, expanded_detection_bin);
+              const auto mean_pos = mean_position(box_shape);
+              const auto p0 = stir::make_coordinate(mean_pos.c[2], -mean_pos.c[0], -mean_pos.c[1]);
+              const auto diff = coord_0 - p0;
+              std::cout << det_pos << coord_0 << p0 << diff << "\n";
+            }
+      }
+    else if (auto pdi_ptr = dynamic_cast<const stir::ProjDataInfoCylindricalNoArcCorr*>(&stir_proj_data_info))
+      {
+        auto& pdi = *pdi_ptr;
+        for (unsigned int r = 0; r < static_cast<unsigned>(stir_scanner->get_num_rings()); ++r)
+          for (unsigned int d = 0; d < static_cast<unsigned>(stir_scanner->get_num_detectors_per_ring()); ++d)
+            {
+              pdi.find_cartesian_coordinates_given_scanner_coordinates(coord_0, coord_1, r, 0, d, 0, 1);
+              stir::DetectionPosition<> det_pos{ d, r, 0 };
+              const auto det_bin = get_PETSIRD_id_from_stir_det_pos(det_pos, stir_scanner);
+              const petsird::TypeOfModule type_of_module{ 0 };
+              const auto expanded_detection_bin = petsird_helpers::expand_detection_bin(scanner_info, type_of_module, det_bin);
+              const auto box_shape
+                  = petsird_helpers::geometry::get_detecting_box(scanner_info, type_of_module, expanded_detection_bin);
+              const auto mean_pos = mean_position(box_shape);
+              const auto p0 = stir::make_coordinate(mean_pos.c[2], -mean_pos.c[0], -mean_pos.c[1]);
+              const auto diff = coord_0 - p0;
+              std::cout << det_pos << coord_0 << p0 << diff << "\n";
+            }
+      }
+    else
+      {
+        stir::error("Cannot handle projdatainfo");
+      }
   }
   // TODO scanner_info.coincidence_policy = petsird::CoincidencePolicy::kRejectMultiples;
   scanner_info.delayed_events_are_stored = true;
