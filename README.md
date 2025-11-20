@@ -9,7 +9,16 @@ is working towards establishing a standard for PET Raw Data, called PETSIRD ("PE
 More information is on https://github.com/ETSInitiative/PETSIRD.
 
 ## Status
-This is still work in progress, but does seem to work on "cylindrical" geometries, including normalisation (no singles nor dead-time info is passed on).
+This is still work in progress, but does seem to work, including normalisation (no singles nor dead-time info is passed on).
+
+## Installation
+Either use the devcontainer, or self-build:
+```
+git clone --recurse-submodules https://github.com/ETSIhackers/STIR2PETSIRD.git
+cd STIR2PETSIRD
+conda env create
+conda activate petsird
+just build
 
 ## Example usage
 For the [mMR acquisition of the NEMA phantom on Zenodo](https://zenodo.org/records/1304454):
