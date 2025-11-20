@@ -19,6 +19,12 @@ cd STIR2PETSIRD
 conda env create
 conda activate petsird
 just build
+```
+This will install the executable in `$CONDA_PREFIX/bin`. If you want it installed somewhere else,
+you can specify the value of `CMAKE_INSTALL_PREFIX` as an argument:
+```
+just build ~/my_install_directory
+```
 
 ## Example usage
 For the [mMR acquisition of the NEMA phantom on Zenodo](https://zenodo.org/records/1304454):
@@ -38,5 +44,5 @@ For the [mMR acquisition of the NEMA phantom on Zenodo](https://zenodo.org/recor
    ```
 3. run the convertor
    ```
-   build/STIR_PETSIRD_convertor  mMR_NEMA_norm.petsird 20170809_NEMA_60min_UCL.l.hdr norm.par
+   STIR_PETSIRD_convertor  mMR_NEMA_norm.petsird 20170809_NEMA_60min_UCL.l.hdr norm.par
    ```
