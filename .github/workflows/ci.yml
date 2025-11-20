@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: {submodules: recursive}
       - name: strip environment.yml
         run: |
@@ -37,7 +37,7 @@ jobs:
           rm temp-ci-environment.yml
           YARDL_DIR=${{github.workspace}}/yardl
           mkdir ${YARDL_DIR}
-          YARDL_VERSION=0.6.3
+          YARDL_VERSION=0.6.5
           wget --quiet "https://github.com/microsoft/yardl/releases/download/v${YARDL_VERSION}/yardl_${YARDL_VERSION}_linux_x86_64.tar.gz"
           tar -xzf "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz" -C "${YARDL_DIR}"
           rm "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz"
