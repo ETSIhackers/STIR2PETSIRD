@@ -1,5 +1,6 @@
 name: petsird
 channels:
+  - conda-forge/label/stir_dev
   - conda-forge
   - defaults
 dependencies:
