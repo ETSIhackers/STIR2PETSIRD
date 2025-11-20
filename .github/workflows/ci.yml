@@ -43,13 +43,13 @@ jobs:
           rm "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz"
           echo "${YARDL_DIR}" >> $GITHUB_PATH
 
-      - name: Build model
+      - name: Build model and compile
         run: |
-          cd PETSIRD/model
-          yardl generate
+          just
 
-      - name: Cpp
+      - name: Run
         run: |
-          cd cpp && mkdir -p build && cd build
-          cmake -G Ninja -S .. -DHDF5_ROOT="$CONDA_PREFIX"
-          ninja
+          # This should get a usage message
+          # However, as this will return 1, we need to return "true", as otherwise the test would fail.
+          # So, this is therefore not a real test (except when you check the CI log)
+          STIR_PETSIRD_convertor || true
