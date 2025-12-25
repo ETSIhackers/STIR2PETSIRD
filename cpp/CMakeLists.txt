@@ -19,11 +19,35 @@ find_package(PETSIRD CONFIG REQUIRED)
 
 add_executable(STIR_PETSIRD_convertor STIR_PETSIRD_convertor.cpp)
 
+add_library(stir2petsird STIR_PETSIRD_convertor.cpp STIR_PETSIRD_convertor.h)  
+
 target_link_libraries(STIR_PETSIRD_convertor PUBLIC ${STIR_LIBRARIES} PETSIRD::petsird)
+
+target_link_libraries(stir2petsird
+  PUBLIC
+    PETSIRD::petsird
+    ${STIR_LIBRARIES}
+)
+
 target_include_directories(STIR_PETSIRD_convertor
   PUBLIC
     ${STIR_INCLUDE_DIRS}
 )
 
+target_include_directories(stir2petsird
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
 install(TARGETS STIR_PETSIRD_convertor RUNTIME DESTINATION bin)
 
+install(TARGETS stir2petsird
+  EXPORT STIR2PETSIRDTargets
+  DESTINATION lib
+)
+
+install(EXPORT STIR2PETSIRDTargets
+  NAMESPACE STIR2PETSIRD::
+  DESTINATION lib/cmake/STIR2PETSIRD
+)
