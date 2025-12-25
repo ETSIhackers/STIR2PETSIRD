@@ -26,6 +26,9 @@ jobs:
               nlohmann-json3-dev
             sudo apt-get install -y libhowardhinnant-date-dev
 
+        - name: Checkout STIR2PETSIRD
+          uses: actions/checkout@v4
+
         - name: Checkout STIR
           uses: actions/checkout@v4
           with:
@@ -138,6 +141,9 @@ jobs:
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/stir-install" \
               -DDISABLE_PETSIRD=ON \
+              -DDISABLE_ITK=ON \
+              -DDISABLE_STIR_LOCAL=ON \
+              -DBUILD_DOCUMENTATION=OFF \
               -DDISABLE_HDF5=OFF \
               -DDISABLE_NLOHMANN_JSON=OFF \
               -DSTIR_OPENMP=ON
