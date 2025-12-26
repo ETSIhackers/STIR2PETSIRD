@@ -1,0 +1,3 @@
+@PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/STIR2PETSIRDTargets-noconfig.cmake")
+check_required_components(STIR2PETSIRD)
