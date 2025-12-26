@@ -33,7 +33,7 @@ jobs:
           uses: actions/checkout@v4
           with:
             repository: UCL/STIR
-            ref: master
+            ref: PETSIRD
             path: STIR
 
         - name: Checkout PETSIRD
@@ -168,11 +168,7 @@ jobs:
             
             cmake --build . -j$(nproc)
 
-
-
-      # # - name: Run
-      # #   run: |
-      # #     # This should get a usage message
-      # #     # However, as this will return 1, we need to return "true", as otherwise the test would fail.
-      # #     # So, this is therefore not a real test (except when you check the CI log)
-      # #     STIR_PETSIRD_convertor || true
+        - name: Run Tests
+          run: |
+            cd cpp/build-stir2petsird 
+            make test
