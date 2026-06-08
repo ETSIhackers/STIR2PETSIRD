@@ -1,27 +1,32 @@
 set shell := ['bash', '-ceuo', 'pipefail']
 
-install_prefix := "$CONDA_PREFIX"
+cmake_install_prefix := "$CONDA_PREFIX"
+cmake_build_type := "Release"
+cmake_build_dir := "cpp/build"
 
-default: (build install_prefix)
+@default: build
 
 @help:
-    echo Usage: "just build [<CMAKE_INSTALL_PREFIX>]"
-    echo The third argument is optional and will default to \$CONDA_PREFIX
-    echo "which is currently set to $CONDA_PREFIX"
+    echo 'Usage: "just [cmake_install_prefix=<CMAKE_INSTALL_PREFIX>] [cmake_build_dir=<BUILD_DIR>] [cmake_build_type=Release]"'
+    echo 'The variables will be passed to CMake for the C++ build.'
+    echo 'Defaults:'
+    echo "  cmake_install_prefix=\$CONDA_PREFIX (which is currently set to \"$CONDA_PREFIX\")"
+    echo '  cmake_build_type=Release'
+    echo '  cmake_build_dir=cpp/build (this is relative to the PETSIRD folder)'
+    echo 'Run "just --summary" for possible recipes (default recipe is "build")'
 
-@ensure-build-dir:
-    mkdir -p cpp/build
+@petsird:
+    cd PETSIRD; \
+    just cmake_install_prefix={{cmake_install_prefix}} build
 
-@generate:
-    cd PETSIRD/model; \
-    yardl generate
+@configure: petsird
+   cmake -GNinja -S cpp -B {{cmake_build_dir}} \
+      -DCMAKE_BUILD_TYPE:BOOL={{cmake_build_type}} \
+      -DCMAKE_INSTALL_PREFIX:PATH={{cmake_install_prefix}}
 
-@configure install_prefix: generate ensure-build-dir
-    cd cpp; \
-    cmake -GNinja -S . -B build/ -DCMAKE_INSTALL_PREFIX:PATH={{install_prefix}}
-
-@build install_prefix: generate (configure install_prefix)
-    cd cpp/build; \
-    ninja install
+@build: configure
+   cd {{cmake_build_dir}} && \
+    cmake --build . --config {{cmake_build_type}} && \
+    cmake --install .
 
 

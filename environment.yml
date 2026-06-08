@@ -15,7 +15,7 @@ dependencies:
   - ninja>=1.11.0
   - nlohmann_json>=3.11.2
   - shellcheck>=0.8.0
-  - xtensor>=0.24.2, <0.26.0
+  - xtensor>=0.26.0
   - xtensor-blas
   - libitk-devel>=5.2.0
   - libboost-headers
