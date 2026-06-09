@@ -10,7 +10,7 @@ runs:
         # filter conda environment file
         cat environment.yml | grep -v "#.*\<\local\>" > ci-environment.yml
 
-    - uses: conda-incubator/setup-miniconda@v2
+    - uses: conda-incubator/setup-miniconda@v4
       with:
         activate-environment: yardl
         environment-file: ci-environment.yml
