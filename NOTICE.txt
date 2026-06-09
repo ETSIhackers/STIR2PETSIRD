@@ -1,10 +1,18 @@
-Copyright 2023 University College London (UCL)
+Copyright 2023-2026 University College London (UCL)
+Copyright 2024 MGH
+Copyright 2023 University of Sheffield
+Copyright 2024 Prescient Imaging
+Copyright 2025 University of Leeds
 
 This software product is developed for the Emission Tomography Standardization
 Initiative (ETSI), https://etisinitiative.org.
 
 Main contributors:
 Kris Thielemans (UCL)
+Eve Lennie (U Sheffield)
+Nikos Efthimiou (MGH)
+Robert Twyman Skelly (Prescient Imaging)
+Viet Dao (U Leeds)
 
 ### Apache License ###
 

@@ -21,10 +21,11 @@ conda activate petsird
 just build
 ```
 This will install the executable in `$CONDA_PREFIX/bin`. If you want it installed somewhere else,
-you can specify the value of `CMAKE_INSTALL_PREFIX` as an argument:
+you can specify this as follows:
 ```
-just build ~/my_install_directory
+just cmake_install_prefix=~/my_install_directory build
 ```
+You will then have to add `~/my_install_directory/bin` to your `PATH` of course.
 
 ## Example usage
 For the [mMR acquisition of the NEMA phantom on Zenodo](https://zenodo.org/records/1304454):
