@@ -12,7 +12,11 @@ More information is on https://github.com/ETSInitiative/PETSIRD.
 This is still work in progress, but does seem to work, including normalisation (no singles nor dead-time info is passed on).
 
 ## Installation
-Either use the devcontainer, or self-build:
+Easiest is to use the devcontainer. Self-build instructions:
+
+1. Install (mini)conda or similar
+2. Install `yardl` by downloading from https://github.com/microsoft/yardl/releases/tag/v0.6.7 and extracting. Add the corresponding `bin` directory to you `PATH`.
+3. Install STIR2PETSIRD 
 ```
 git clone --recurse-submodules https://github.com/ETSIhackers/STIR2PETSIRD.git
 cd STIR2PETSIRD
