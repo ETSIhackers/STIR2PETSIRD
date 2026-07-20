@@ -85,7 +85,9 @@ template <class T>
 inline
 std::array<T, 3> get_indices_from_id(T id, const std::array<T, 3>& sizes)
 {
+#ifndef NDEBUG
   const auto N0 = sizes[0];
+#endif
   const auto N1 = sizes[1];
   const auto N2 = sizes[2];
   assert(id < N0 * N1 * N2);
@@ -102,7 +104,9 @@ template <class T>
 inline
 T get_id_from_indices(const std::array<T, 3>& inds, const std::array<T, 3>& sizes)
 {
+#ifndef NDEBUG
   const auto N0 = sizes[0];
+#endif
   const auto N1 = sizes[1];
   const auto N2 = sizes[2];
   assert(inds[0] < N0);
@@ -573,20 +577,21 @@ STIRPETSIRDConvertor::process_data()
   event_time_blk.time_interval.start = 0;
   event_time_blk.prompt_events.resize(1);
   event_time_blk.prompt_events[0].resize(1);
-  event_time_blk.delayed_events = std::vector<std::vector<petsird::ListOfCoincidenceEvents>>();
+  //event_time_blk.delayed_events = std::vector<std::vector<petsird::ListOfCoincidenceEvents>>();
   event_time_blk.delayed_events.resize(1);
   event_time_blk.delayed_events[0].resize(1);
+  // references to the corresponding vectors
+  auto& prompts_this_blk = event_time_blk.prompt_events[0][0];
+  auto& delayeds_this_blk = event_time_blk.delayed_events[0][0];
 
 
   petsird::ExternalSignalTimeBlock signal_time_blk;
   petsird::BedMovementTimeBlock bed_movement_time_blk;
   petsird::GantryMovementTimeBlock gantry_movement_time_blk;
 
-  std::vector<petsird::CoincidenceEvent> prompts_this_blk;
-  std::vector<petsird::CoincidenceEvent> delayeds_this_blk;
-
   double current_time = 0.0;
   unsigned long num_events = 0;
+  unsigned long num_delayed_events = 0;
 
   // Setup the petsird header info
   petsird::Header header_info = get_header();
@@ -630,8 +635,6 @@ STIRPETSIRDConvertor::process_data()
         {
           current_time = record.time().get_time_in_millisecs();
           event_time_blk.time_interval.stop = current_time;
-          event_time_blk.prompt_events[0][0] = prompts_this_blk;
-          event_time_blk.delayed_events[0][0] = delayeds_this_blk;
           writer.WriteTimeBlocks(event_time_blk);
           event_time_blk.time_interval.start = current_time;
           prompts_this_blk.clear();
@@ -687,6 +690,7 @@ STIRPETSIRDConvertor::process_data()
           else
             {
               delayeds_this_blk.push_back(e);
+              ++num_delayed_events;
             }
         } // end of spatial event processing
         if (num_events%100000 == 0)
@@ -698,7 +702,7 @@ STIRPETSIRDConvertor::process_data()
     }     // end of while loop over all events
     writer.EndTimeBlocks();
     writer.Close();
-    std::cout << "Done! Processed " << num_events << " events." << std::endl;
+    std::cout << "Done! Processed " << num_events << " prompt events, " << num_delayed_events << " delayed events." << std::endl;
 }
 
 int
