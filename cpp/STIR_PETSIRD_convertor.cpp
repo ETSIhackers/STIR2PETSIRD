@@ -1,3 +1,5 @@
+#include <algorithm>
+#include "stir/listmode/CListRecordECAT8_32bit.h"
 /*!
   \file
   \brief Implementation of class STIRPETSIRDConvertor
@@ -372,6 +374,8 @@ if (!stir::is_null_ptr(dynamic_cast<const stir::ProjDataInfoBlocksOnCylindrical 
   // TODO scanner_info.coincidence_policy = petsird::CoincidencePolicy::kRejectMultiples;
   scanner_info.delayed_events_are_stored = true;
   scanner_info.triple_events_are_stored = false;
+  scanner_info.singles_histogram_level = petsird::SinglesHistogramLevelType::kModule;
+  scanner_info.singles_histogram_energy_bin_edges = scanner_info.event_energy_bin_edges;
 }
 
 template <class ProjDataInfoT>
@@ -592,13 +596,18 @@ STIRPETSIRDConvertor::process_data()
   petsird::Header header_info = get_header();
   auto& scanner_info = header_info.scanner;
   const auto num_types_of_modules = 1;
-  // Pre-allocate various structures to have the correct size for num_types_of_modules
-  // (We will still have to set descent values into each of these.)
   petsird_helpers::create::initialize_scanner_information_dimensions(scanner_info, num_types_of_modules,
                                                                      /* allocate_detection_bin_efficiencies = */ false,
                                                                      /* allocate_module_pair_efficiencies = */ this->normalisation_sptr != nullptr);
   set_scanner_geometry(scanner_info, *stir_proj_data_info_sptr,
                        *stir_exam_info_sptr);
+
+  // Singles accumulator — num_buckets read dynamically from scanner geometry
+  const int num_buckets = lm_data_ptr->get_scanner().get_num_singles_units() > 1
+                          ? lm_data_ptr->get_scanner().get_num_singles_units()
+                          : 224;
+  std::vector<float> singles_per_bucket(num_buckets, 0.f);
+  double singles_interval_start = 0.0;
 
   if (this->normalisation_sptr)
     {
@@ -636,6 +645,53 @@ STIRPETSIRDConvertor::process_data()
           event_time_blk.time_interval.start = current_time;
           prompts_this_blk.clear();
           delayeds_this_blk.clear();
+          // Write singles histogram block for this time interval
+          {
+              const bool has_singles = std::any_of(singles_per_bucket.begin(),
+                                                    singles_per_bucket.end(),
+                                                    [](float v){ return v > 0.f; });
+              if (has_singles)
+              {
+                  petsird::SinglesHistogramTimeBlock singles_blk;
+                  singles_blk.time_interval.start = singles_interval_start;
+                  singles_blk.time_interval.stop  = current_time;
+                  xt::xtensor<uint64_t, 1> singles_array;
+                  singles_array.resize({ static_cast<std::size_t>(num_buckets) });
+                  for (int i = 0; i < num_buckets; ++i)
+                      singles_array[i] = static_cast<uint64_t>(singles_per_bucket[i]);
+                  singles_blk.singles_histograms.push_back(singles_array);
+                  writer.WriteTimeBlocks(petsird::TimeBlock(singles_blk));
+                  // write DeadTimeTimeBlock with pre-computed alive fractions
+                  const float dtp  = -1.1160431e-6f; //mMR specific acquired from NiftyPET
+                  const float dtnp =  4.8831783e-13f;
+                  const float dt_s = (current_time - singles_interval_start) / 1000.f;
+
+                  petsird::SinglesAliveTimeFractions sat;
+                  sat.resize({ static_cast<std::size_t>(num_buckets) });
+                  for (int i = 0; i < num_buckets; ++i)
+                  {
+                      const float rate = dt_s > 0.f
+                                         ? static_cast<float>(singles_per_bucket[i]) / dt_s
+                                         : 0.f;
+                      const float denom = 1.f + 0.5f * rate * dtnp;
+                      sat[i] = std::exp(0.5f * rate * dtp / denom) / denom;
+                  }
+                  petsird::DeadTimeTimeBlock dt_blk;
+                  dt_blk.time_interval.start = singles_interval_start;
+                  dt_blk.time_interval.stop  = current_time;
+                  dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(sat);
+                  writer.WriteTimeBlocks(petsird::TimeBlock(dt_blk));
+
+                  std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
+                  std::cerr << "DEBUG DT: dt_s=" << dt_s 
+                            << " singles[0]=" << singles_per_bucket[0]
+                            << " rate=" << (dt_s > 0 ? singles_per_bucket[0]/dt_s : 0)
+                            << " alive[0]=" << sat[0] << "\n";
+              
+              }
+              if (has_singles)
+                singles_interval_start = current_time;
+          }
         }
       if (record.is_event())
         {
@@ -689,6 +745,13 @@ STIRPETSIRDConvertor::process_data()
               delayeds_this_blk.push_back(e);
             }
         } // end of spatial event processing
+        auto* ecat8_record = dynamic_cast<stir::ecat::CListRecordECAT8_32bit*>(&record);
+        if (ecat8_record != nullptr && ecat8_record->is_singles())
+        {
+            const unsigned int ibck = ecat8_record->singles().get_bucket_index();
+            if (ibck < static_cast<unsigned int>(num_buckets))
+                singles_per_bucket[ibck] += ecat8_record->singles().get_singles_count();
+        }
         if (num_events%100000 == 0)
         {
           std::cout << num_events << std::endl; 
