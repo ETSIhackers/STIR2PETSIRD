@@ -603,10 +603,10 @@ STIRPETSIRDConvertor::process_data()
                        *stir_exam_info_sptr);
 
   // Singles accumulator — num_buckets read dynamically from scanner geometry
-  const int num_buckets = lm_data_ptr->get_scanner().get_num_singles_units() > 1
-                          ? lm_data_ptr->get_scanner().get_num_singles_units()
-                          : 224;
+  const int num_buckets = lm_data_ptr->get_scanner().get_num_singles_units();
   std::vector<float> singles_per_bucket(num_buckets, 0.f);
+  std::vector<unsigned long> singles_nrecords(num_buckets, 0);
+  int n_recorded = 0;   // number of buckets that have a record in the current interval
   double singles_interval_start = 0.0;
 
   if (this->normalisation_sptr)
@@ -647,9 +647,7 @@ STIRPETSIRDConvertor::process_data()
           delayeds_this_blk.clear();
           // Write singles histogram block for this time interval
           {
-              const bool has_singles = std::any_of(singles_per_bucket.begin(),
-                                                    singles_per_bucket.end(),
-                                                    [](float v){ return v > 0.f; });
+              const bool has_singles = (n_recorded >= num_buckets);
               if (has_singles)
               {
                   petsird::SinglesHistogramTimeBlock singles_blk;
@@ -670,11 +668,11 @@ STIRPETSIRDConvertor::process_data()
                   sat.resize({ static_cast<std::size_t>(num_buckets) });
                   for (int i = 0; i < num_buckets; ++i)
                   {
-                      const float rate = dt_s > 0.f
-                                         ? static_cast<float>(singles_per_bucket[i]) / dt_s
-                                         : 0.f;
-                      const float denom = 1.f + 0.5f * rate * dtnp;
-                      sat[i] = std::exp(0.5f * rate * dtp / denom) / denom;
+                    const float rate = singles_nrecords[i] > 0
+                                        ? 8.F * singles_per_bucket[i] / singles_nrecords[i]
+                                        : 0.F;
+                    const float denom = 1.f + 0.5f * rate * dtnp;
+                    sat[i] = std::exp(0.5f * rate * dtp / denom) / denom;
                   }
                   petsird::DeadTimeTimeBlock dt_blk;
                   dt_blk.time_interval.start = singles_interval_start;
@@ -683,6 +681,8 @@ STIRPETSIRDConvertor::process_data()
                   writer.WriteTimeBlocks(petsird::TimeBlock(dt_blk));
 
                   std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
+                  std::fill(singles_nrecords.begin(), singles_nrecords.end(), 0UL);
+                  n_recorded = 0;
                   std::cerr << "DEBUG DT: dt_s=" << dt_s 
                             << " singles[0]=" << singles_per_bucket[0]
                             << " rate=" << (dt_s > 0 ? singles_per_bucket[0]/dt_s : 0)
@@ -746,11 +746,15 @@ STIRPETSIRDConvertor::process_data()
             }
         } // end of spatial event processing
         auto* ecat8_record = dynamic_cast<stir::ecat::CListRecordECAT8_32bit*>(&record);
-        if (ecat8_record != nullptr && ecat8_record->is_singles())
+        if (ecat8_record != nullptr && !record.is_time() && !record.is_event() && ecat8_record->is_singles())
         {
             const unsigned int ibck = ecat8_record->singles().get_bucket_index();
             if (ibck < static_cast<unsigned int>(num_buckets))
+              {
                 singles_per_bucket[ibck] += ecat8_record->singles().get_singles_count();
+                if (singles_nrecords[ibck]++ == 0)
+                  ++n_recorded;
+              }
         }
         if (num_events%100000 == 0)
         {
