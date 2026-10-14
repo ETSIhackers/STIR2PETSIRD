@@ -53,6 +53,8 @@
 
 constexpr float speed_of_light_mm_per_ps = 0.299792458F;
 
+static double g_dead_time_paralyzing = 0.0;
+static double g_dead_time_non_paralyzing = 0.0;
 static petsird::Coordinate mean_position(const petsird::BoxShape& box_shape)
 {
   petsird::Coordinate mean;
@@ -552,7 +554,17 @@ get_det_pos_pair_help(const stir::ListEvent& event, const ProjDataInfoT& proj_da
   return dp_pair;
 }
 
-
+// Source bucket layout (mMR: 28 transaxial x 8 axial buckets of 18 x 8 crystals, index = transaxial + 28 * axial).
+// This is the only place that needs it: singles are written per module.
+static int bucket_of_module(const int module, const stir::Scanner& sc)
+{
+  const int xtals_per_bucket_trans = 18, xtals_per_bucket_ax = 8;
+  const int n_ax_blk = sc.get_num_axial_blocks();
+  const int ax_mod = module % n_ax_blk, tang_mod = module / n_ax_blk;   // same convention as get_PETSIRD_id_from_stir_det_pos
+  const int bt = (tang_mod * sc.get_num_transaxial_crystals_per_block()) / xtals_per_bucket_trans;
+  const int ba = (ax_mod * sc.get_num_axial_crystals_per_block()) / xtals_per_bucket_ax;
+  return bt + (sc.get_num_detectors_per_ring() / xtals_per_bucket_trans) * ba;
+}
 void
 STIRPETSIRDConvertor::process_data()
 {
@@ -604,6 +616,7 @@ STIRPETSIRDConvertor::process_data()
 
   // Singles accumulator — num_buckets read dynamically from scanner geometry
   const int num_buckets = lm_data_ptr->get_scanner().get_num_singles_units();
+  const int num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   std::vector<float> singles_per_bucket(num_buckets, 0.f);
   std::vector<unsigned long> singles_nrecords(num_buckets, 0);
   int n_recorded = 0;   // number of buckets that have a record in the current interval
@@ -660,20 +673,23 @@ STIRPETSIRDConvertor::process_data()
                   singles_blk.singles_histograms.push_back(singles_array);
                   writer.WriteTimeBlocks(petsird::TimeBlock(singles_blk));
                   // write DeadTimeTimeBlock with pre-computed alive fractions
-                  const float dtp  = -1.1160431e-6f; //mMR specific acquired from NiftyPET
-                  const float dtnp =  4.8831783e-13f;
+                  if (g_dead_time_paralyzing >= 0.0)
+                    stir::error("Add 'dead time paralyzing coefficient' (negative) and 'dead time non-paralyzing coefficient' to the norm parameter file");
+                  const float dtp  = static_cast<float>(g_dead_time_paralyzing);
+                  const float dtnp = static_cast<float>(g_dead_time_non_paralyzing);
                   const float dt_s = (current_time - singles_interval_start) / 1000.f;
 
-                  petsird::SinglesAliveTimeFractions sat;
-                  sat.resize({ static_cast<std::size_t>(num_buckets) });
+                  std::vector<float> alive_bucket(num_buckets);
                   for (int i = 0; i < num_buckets; ++i)
                   {
-                    const float rate = singles_nrecords[i] > 0
-                                        ? 8.F * singles_per_bucket[i] / singles_nrecords[i]
-                                        : 0.F;
+                    const float rate = 8.F * singles_per_bucket[i] / singles_nrecords[i];
                     const float denom = 1.f + 0.5f * rate * dtnp;
-                    sat[i] = std::exp(0.5f * rate * dtp / denom) / denom;
+                    alive_bucket[i] = std::exp(0.5f * rate * dtp / denom) / denom;
                   }
+                  petsird::SinglesAliveTimeFractions sat;
+                  sat.resize({ static_cast<std::size_t>(num_modules) });
+                  for (int m = 0; m < num_modules; ++m)
+                    sat[m] = alive_bucket[bucket_of_module(m, *stir_scanner)];
                   petsird::DeadTimeTimeBlock dt_blk;
                   dt_blk.time_interval.start = singles_interval_start;
                   dt_blk.time_interval.stop  = current_time;
@@ -786,6 +802,8 @@ main(int argc, char* argv[])
       stir::KeyParser parser;
       parser.add_start_key("Bin normalisation parameters");
       parser.add_parsing_key("type", &normalisation_sptr);
+      parser.add_key("dead time paralyzing coefficient", &g_dead_time_paralyzing);
+      parser.add_key("dead time non-paralyzing coefficient", &g_dead_time_non_paralyzing);
       parser.add_stop_key("END");
       parser.parse(argv[3]);
       my_class.set_normalisation_sptr(normalisation_sptr);
