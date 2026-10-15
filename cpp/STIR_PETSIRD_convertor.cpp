@@ -554,8 +554,7 @@ get_det_pos_pair_help(const stir::ListEvent& event, const ProjDataInfoT& proj_da
   return dp_pair;
 }
 
-// Source bucket layout (mMR: 28 transaxial x 8 axial buckets of 18 x 8 crystals, index = transaxial + 28 * axial).
-// This is the only place that needs it: singles are written per module.
+
 static int bucket_of_module(const int module, const stir::Scanner& sc)
 {
   const int xtals_per_bucket_trans = 18, xtals_per_bucket_ax = 8;
@@ -698,12 +697,7 @@ STIRPETSIRDConvertor::process_data()
 
                   std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
                   std::fill(singles_nrecords.begin(), singles_nrecords.end(), 0UL);
-                  n_recorded = 0;
-                  std::cerr << "DEBUG DT: dt_s=" << dt_s 
-                            << " singles[0]=" << singles_per_bucket[0]
-                            << " rate=" << (dt_s > 0 ? singles_per_bucket[0]/dt_s : 0)
-                            << " alive[0]=" << sat[0] << "\n";
-              
+                  n_recorded = 0;              
               }
               if (has_singles)
                 singles_interval_start = current_time;
