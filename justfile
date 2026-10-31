@@ -28,5 +28,3 @@ cmake_build_dir := "cpp/build"
    cd {{cmake_build_dir}} && \
     cmake --build . --config {{cmake_build_type}} && \
     cmake --install .
-
-
