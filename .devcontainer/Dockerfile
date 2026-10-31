@@ -85,10 +85,3 @@ ENV CMAKE_GENERATOR=Ninja
 RUN mkdir -p /home/vscode/.local/share/CMakeTools \
     && echo '[{"name":"GCC-10","compilers":{"C":"/opt/conda/envs/petsird/bin/x86_64-conda_cos6-linux-gnu-gcc","CXX":"/opt/conda/envs/petsird/bin/x86_64-conda_cos6-linux-gnu-g++"}}]' > /home/vscode/.local/share/CMakeTools/cmake-tools-kits.json \
     && chown vscode:conda /home/vscode/.local/share/CMakeTools/cmake-tools-kits.json
-
-# Install the yardl tool
-ARG YARDL_VERSION=0.6.7
-RUN wget --quiet "https://github.com/microsoft/yardl/releases/download/v${YARDL_VERSION}/yardl_${YARDL_VERSION}_linux_x86_64.tar.gz" \
-    && tar -xzf "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz" \
-    && mv yardl "/opt/conda/envs/${CONDA_ENVIRONMENT_NAME}/bin/" \
-    && rm "yardl_${YARDL_VERSION}_linux_x86_64.tar.gz"
