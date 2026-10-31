@@ -1,0 +1,41 @@
+ci:
+  skip: [todo]
+  autoupdate_schedule: monthly
+default_language_version:
+  python: python3
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+  - id: check-added-large-files
+  - id: check-builtin-literals
+  - id: check-case-conflict
+  - id: check-docstring-first
+  - id: check-executables-have-shebangs
+  - id: check-merge-conflict
+  - id: check-toml
+  - id: check-yaml
+    args: [--unsafe]
+  - id: debug-statements
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
+  - id: sort-simple-yaml
+  - id: trailing-whitespace
+- repo: local
+  hooks:
+  - id: todo
+    name: Check TODO
+    language: pygrep
+    args: [-i]
+    entry: TODO
+    types: [text]
+    exclude: ^.pre-commit-config.yaml$
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.3
+  hooks:
+  - id: codespell
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v23.1.2
+  hooks:
+  - id: clang-format
+    types_or: [c++]
