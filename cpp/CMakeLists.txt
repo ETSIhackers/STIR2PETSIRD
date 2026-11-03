@@ -19,4 +19,3 @@ find_package(PETSIRD REQUIRED CONFIG)
 add_executable(STIR_PETSIRD_convertor STIR_PETSIRD_convertor.cpp ${STIR_REGISTRIES})
 target_link_libraries(STIR_PETSIRD_convertor PUBLIC PETSIRD::helpers ${STIR_LIBRARIES})
 install(TARGETS STIR_PETSIRD_convertor DESTINATION bin)
-

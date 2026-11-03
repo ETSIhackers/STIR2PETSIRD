@@ -8,16 +8,8 @@ dependencies:
   - cmake>=3.21.3
   - fmt>=8.1.1
   - cxx-compiler
-  - h5py>=3.7.0
-  - hdf5>=1.12.1
-  - howardhinnant_date>=3.0.1
+  - libpetsird>=0.12.2,<0.13.0
   - just=1.36.0
   - ninja>=1.11.0
-  - nlohmann_json>=3.11.2
-  - pip  # necessary for PETSIRD atm
   - shellcheck>=0.8.0
-  - xtensor>=0.26.0
-  - xtensor-blas
-  - libitk-devel>=5.2.0
-  - libboost-headers
   - stir

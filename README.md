@@ -1,6 +1,6 @@
 # STIR2PETSIRD converter
 
-The purpose of this repo is to provide a starting point for converting list mode PET data read by STIR to PETSIRD. 
+The purpose of this repo is to provide a starting point for converting list mode PET data read by STIR to PETSIRD.
 
 
 ## Background
@@ -16,7 +16,7 @@ Easiest is to use the devcontainer. Self-build instructions:
 
 1. Install (mini)conda or similar
 2. Install `yardl` by downloading from https://github.com/microsoft/yardl/releases/tag/v0.6.7 and extracting. Add the corresponding `bin` directory to you `PATH`.
-3. Install STIR2PETSIRD 
+3. Install STIR2PETSIRD
 ```
 git clone --recurse-submodules https://github.com/ETSIhackers/STIR2PETSIRD.git
 cd STIR2PETSIRD
@@ -47,7 +47,7 @@ For the [mMR acquisition of the NEMA phantom on Zenodo](https://zenodo.org/recor
     End Bin Normalisation From ecat8:=
    END:=
    ```
-3. run the convertor
+3. run the converter
    ```
    STIR_PETSIRD_convertor  mMR_NEMA_norm.petsird 20170809_NEMA_60min_UCL.l.hdr norm.par
    ```
