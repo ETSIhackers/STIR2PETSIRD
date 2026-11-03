@@ -12,14 +12,10 @@ cmake_build_dir := "cpp/build"
     echo 'Defaults:'
     echo "  cmake_install_prefix=\$CONDA_PREFIX (which is currently set to \"$CONDA_PREFIX\")"
     echo '  cmake_build_type=Release'
-    echo '  cmake_build_dir=cpp/build (this is relative to the PETSIRD folder)'
+    echo '  cmake_build_dir=cpp/build (this is relative to the STIR2PETSIRD folder)'
     echo 'Run "just --summary" for possible recipes (default recipe is "build")'
 
-@petsird:
-    cd PETSIRD; \
-    just cmake_install_prefix={{cmake_install_prefix}} build
-
-@configure: petsird
+@configure:
    cmake -GNinja -S cpp -B {{cmake_build_dir}} \
       -DCMAKE_BUILD_TYPE:BOOL={{cmake_build_type}} \
       -DCMAKE_INSTALL_PREFIX:PATH={{cmake_install_prefix}}
