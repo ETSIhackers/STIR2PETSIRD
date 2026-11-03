@@ -553,11 +553,11 @@ get_det_pos_pair_help(const stir::ListEvent& event, const ProjDataInfoT& proj_da
   return dp_pair;
 }
 
-
 //! Index of the singles unit (bucket) that contains the first crystal of a PETSIRD module
 /*! Uses the same bucket numbering as the singles records (transaxial + num_transaxial_singles_units * axial)
     and the same module numbering as get_PETSIRD_id_from_stir_det_pos. */
-static int bucket_of_module(const int module, const stir::Scanner& sc)
+static int
+bucket_of_module(const int module, const stir::Scanner& sc)
 {
   const int xtals_per_bucket_trans = sc.get_num_transaxial_crystals_per_singles_unit();
   const int xtals_per_bucket_ax = sc.get_num_axial_crystals_per_singles_unit();
@@ -639,7 +639,7 @@ STIRPETSIRDConvertor::process_data()
   const int num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   std::vector<float> singles_per_bucket(num_buckets, 0.f);
   std::vector<unsigned long> singles_nrecords(num_buckets, 0);
-  int n_recorded = 0;   // number of buckets that have a record in the current interval
+  int n_recorded = 0; // number of buckets that have a record in the current interval
   double singles_interval_start = 0.0;
 
   if (is_ecat8_listmode)
@@ -648,7 +648,8 @@ STIRPETSIRDConvertor::process_data()
       scanner_info.module_singles_unit_idx_lu_ts.resize(num_types_of_modules);
       scanner_info.module_singles_unit_idx_lu_ts[0].resize(num_modules);
       for (int m = 0; m < num_modules; ++m)
-        scanner_info.module_singles_unit_idx_lu_ts[0][m] = static_cast<petsird::SinglesUnitIdx>(bucket_of_module(m, *stir_scanner));
+        scanner_info.module_singles_unit_idx_lu_ts[0][m]
+            = static_cast<petsird::SinglesUnitIdx>(bucket_of_module(m, *stir_scanner));
     }
 
   if (this->normalisation_sptr)
@@ -689,51 +690,51 @@ STIRPETSIRDConvertor::process_data()
           delayeds_this_blk.clear();
           // Write singles histogram block for this time interval
           {
-              const bool has_singles = (n_recorded >= num_buckets);
-              if (has_singles)
+            const bool has_singles = (n_recorded >= num_buckets);
+            if (has_singles)
               {
-                  petsird::SinglesHistogramTimeBlock singles_blk;
-                  singles_blk.time_interval.start = singles_interval_start;
-                  singles_blk.time_interval.stop  = current_time;
-                  singles_blk.singles_per_singles_unit_histogram.resize(num_buckets);
-                  for (int i = 0; i < num_buckets; ++i)
-                    singles_blk.singles_per_singles_unit_histogram[i] = { static_cast<uint64_t>(singles_per_bucket[i]) };
-                  writer.WriteTimeBlocks(petsird::TimeBlock(singles_blk));
-                  // write DeadTimeTimeBlock with pre-computed alive fractions
-                  if (write_dead_time)
-                    {
-                      // rate per bucket (counts per second, as in the singles records)
-                      const int rings_per_module = stir_scanner->get_num_axial_crystals_per_block();
-                      const int num_axial_blocks = stir_scanner->get_num_axial_blocks();
-                      std::vector<float> rate_bucket(num_buckets);
-                      for (int i = 0; i < num_buckets; ++i)
-                        rate_bucket[i] = singles_per_bucket[i] / singles_nrecords[i];
+                petsird::SinglesHistogramTimeBlock singles_blk;
+                singles_blk.time_interval.start = singles_interval_start;
+                singles_blk.time_interval.stop = current_time;
+                singles_blk.singles_per_singles_unit_histogram.resize(num_buckets);
+                for (int i = 0; i < num_buckets; ++i)
+                  singles_blk.singles_per_singles_unit_histogram[i] = { static_cast<uint64_t>(singles_per_bucket[i]) };
+                writer.WriteTimeBlocks(petsird::TimeBlock(singles_blk));
+                // write DeadTimeTimeBlock with pre-computed alive fractions
+                if (write_dead_time)
+                  {
+                    // rate per bucket (counts per second, as in the singles records)
+                    const int rings_per_module = stir_scanner->get_num_axial_crystals_per_block();
+                    const int num_axial_blocks = stir_scanner->get_num_axial_blocks();
+                    std::vector<float> rate_bucket(num_buckets);
+                    for (int i = 0; i < num_buckets; ++i)
+                      rate_bucket[i] = singles_per_bucket[i] / singles_nrecords[i];
 
-                      petsird::SinglesAliveTimeFractions sat;
-                      sat.resize({ static_cast<std::size_t>(num_modules) });
-                      for (int m = 0; m < num_modules; ++m)
-                        {
-                          const float rate = rate_bucket[bucket_of_module(m, *stir_scanner)];
-                          const int first_ring = (m % num_axial_blocks) * rings_per_module;
-                          // coefficients are per ring, so average over the rings of this module
-                          float sum = 0.F;
-                          for (int r = 0; r < rings_per_module; ++r)
-                            sum += ecat8_norm_ptr->get_dead_time_efficiency(first_ring + r, rate);
-                          sat[m] = sum / rings_per_module;
-                        }
-                      petsird::DeadTimeTimeBlock dt_blk;
-                      dt_blk.time_interval.start = singles_interval_start;
-                      dt_blk.time_interval.stop = current_time;
-                      dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(sat);
-                      writer.WriteTimeBlocks(petsird::TimeBlock(dt_blk));
-                    }
+                    petsird::SinglesAliveTimeFractions sat;
+                    sat.resize({ static_cast<std::size_t>(num_modules) });
+                    for (int m = 0; m < num_modules; ++m)
+                      {
+                        const float rate = rate_bucket[bucket_of_module(m, *stir_scanner)];
+                        const int first_ring = (m % num_axial_blocks) * rings_per_module;
+                        // coefficients are per ring, so average over the rings of this module
+                        float sum = 0.F;
+                        for (int r = 0; r < rings_per_module; ++r)
+                          sum += ecat8_norm_ptr->get_dead_time_efficiency(first_ring + r, rate);
+                        sat[m] = sum / rings_per_module;
+                      }
+                    petsird::DeadTimeTimeBlock dt_blk;
+                    dt_blk.time_interval.start = singles_interval_start;
+                    dt_blk.time_interval.stop = current_time;
+                    dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(sat);
+                    writer.WriteTimeBlocks(petsird::TimeBlock(dt_blk));
+                  }
 
-                  std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
-                  std::fill(singles_nrecords.begin(), singles_nrecords.end(), 0UL);
-                  n_recorded = 0;              
+                std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
+                std::fill(singles_nrecords.begin(), singles_nrecords.end(), 0UL);
+                n_recorded = 0;
               }
-              if (has_singles)
-                singles_interval_start = current_time;
+            if (has_singles)
+              singles_interval_start = current_time;
           }
         }
       if (record.is_event())
@@ -800,7 +801,7 @@ STIRPETSIRDConvertor::process_data()
                 ++n_recorded;
             }
         }
-      if (num_events%100000 == 0)
+      if (num_events % 100000 == 0)
         {
           std::cout << num_events << std::endl;
         }
