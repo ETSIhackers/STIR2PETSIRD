@@ -411,10 +411,12 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner, const Proj
       = petsird_helpers::create::construct_lower_triangular_or_rectangular_matrix<petsird::SGID>(num_modules, num_modules, true);
 
   int num_SGIDs = 0;
+  std::vector<std::pair<unsigned, unsigned>> first_module_pair_of_SGID; // first (mod1, mod2) that has this SGID
   {
     for (unsigned int mod1 = 0; mod1 < num_modules; ++mod1)
       {
-        for (unsigned int mod2 = 0; mod2 < num_modules; ++mod2)
+        // lower-triangular matrix (module-types are the same): only mod2 <= mod1 exists
+        for (unsigned int mod2 = 0; mod2 <= mod1; ++mod2)
           {
             // const auto z1 = mod1 % NZ;
             const auto a1 = mod1 / NZ;
@@ -426,6 +428,7 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner, const Proj
               }
             else
               {
+                first_module_pair_of_SGID.emplace_back(mod1, mod2);
                 module_pair_SGID_LUT[mod1][mod2] = num_SGIDs++;
               }
           }
@@ -440,26 +443,9 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner, const Proj
   const auto num_energy_bins = 1U; // stir_exam_info.get_num_energy_bins();
   for (int SGID = 0; SGID < num_SGIDs; ++SGID)
     {
-      // extract first module_pair for this SGID.
-      unsigned mod0, mod1;
-      {
-        bool found = false;
-        for (mod0 = 0U; mod0 < num_modules && !found; ++mod0)
-          {
-            for (mod1 = 0U; mod1 > mod0; ++mod1) // lower-triangular as module-types are the same
-              {
-                if (module_pair_SGID_LUT[mod0][mod1] == SGID)
-                  {
-                    found = true;
-                  }
-                break;
-              }
-          }
-        if (!found)
-          {
-            stir::error(stir::format("internal error: no module-pair with SGID {}", SGID));
-          }
-      }
+      // first module pair for this SGID (mod0 >= mod1, as the matrix is lower-triangular)
+      const unsigned mod0 = first_module_pair_of_SGID[SGID].first;
+      const unsigned mod1 = first_module_pair_of_SGID[SGID].second;
 
       petsird::ModulePairEfficiencies module_pair_efficiencies;
       module_pair_efficiencies.values = petsird_helpers::create::construct_rectangular_matrix<float>(
@@ -627,10 +613,15 @@ STIRPETSIRDConvertor::process_data()
   const auto num_types_of_modules = 1;
   // Pre-allocate various structures to have the correct size for num_types_of_modules
   // (We will still have to set descent values into each of these.)
+  // initialize_scanner_information_dimensions resets the energy information set in get_header(), so keep it
+  const auto energy_bin_edges = scanner_info.event_energy_bin_edges;
+  const auto energy_resolution = scanner_info.energy_resolution_at_511;
   petsird_helpers::create::initialize_scanner_information_dimensions(
       scanner_info, num_types_of_modules,
       /* allocate_detection_bin_efficiencies = */ false,
       /* allocate_module_pair_efficiencies = */ this->normalisation_sptr != nullptr);
+  scanner_info.event_energy_bin_edges = energy_bin_edges;
+  scanner_info.energy_resolution_at_511 = energy_resolution;
   set_scanner_geometry(scanner_info, *stir_proj_data_info_sptr, *stir_exam_info_sptr);
   // singles are currently only available from ECAT8 list-mode data
   const bool is_ecat8_listmode = dynamic_cast<stir::ecat::CListRecordECAT8_32bit*>(&record) != nullptr;
@@ -650,6 +641,15 @@ STIRPETSIRDConvertor::process_data()
   std::vector<unsigned long> singles_nrecords(num_buckets, 0);
   int n_recorded = 0;   // number of buckets that have a record in the current interval
   double singles_interval_start = 0.0;
+
+  if (is_ecat8_listmode)
+    {
+      // tell readers which singles unit (bucket) each module belongs to
+      scanner_info.module_singles_unit_idx_lu_ts.resize(num_types_of_modules);
+      scanner_info.module_singles_unit_idx_lu_ts[0].resize(num_modules);
+      for (int m = 0; m < num_modules; ++m)
+        scanner_info.module_singles_unit_idx_lu_ts[0][m] = static_cast<petsird::SinglesUnitIdx>(bucket_of_module(m, *stir_scanner));
+    }
 
   if (this->normalisation_sptr)
     {
@@ -695,11 +695,9 @@ STIRPETSIRDConvertor::process_data()
                   petsird::SinglesHistogramTimeBlock singles_blk;
                   singles_blk.time_interval.start = singles_interval_start;
                   singles_blk.time_interval.stop  = current_time;
-                  xt::xtensor<uint64_t, 1> singles_array;
-                  singles_array.resize({ static_cast<std::size_t>(num_buckets) });
+                  singles_blk.singles_per_singles_unit_histogram.resize(num_buckets);
                   for (int i = 0; i < num_buckets; ++i)
-                      singles_array[i] = static_cast<uint64_t>(singles_per_bucket[i]);
-                  singles_blk.singles_histograms.push_back(singles_array);
+                    singles_blk.singles_per_singles_unit_histogram[i] = { static_cast<uint64_t>(singles_per_bucket[i]) };
                   writer.WriteTimeBlocks(petsird::TimeBlock(singles_blk));
                   // write DeadTimeTimeBlock with pre-computed alive fractions
                   if (write_dead_time)
