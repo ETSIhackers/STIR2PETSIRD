@@ -710,17 +710,22 @@ STIRPETSIRDConvertor::process_data()
                     for (int i = 0; i < num_buckets; ++i)
                       rate_bucket[i] = singles_per_bucket[i] / singles_nrecords[i];
 
+                    // one alive fraction per detection bin (crystal x energy bin), as required by PETSIRD
+                    const int num_el = static_cast<int>(
+                        header_info.scanner.scanner_geometry.replicated_modules[0].object.detecting_elements.transforms.size());
+                    const int num_en = static_cast<int>(header_info.scanner.event_energy_bin_edges[0].NumberOfBins());
                     petsird::SinglesAliveTimeFractions sat;
-                    sat.resize({ static_cast<std::size_t>(num_modules) });
+                    sat.resize({ static_cast<std::size_t>(num_modules) * num_el * num_en });
                     for (int m = 0; m < num_modules; ++m)
                       {
                         const float rate = rate_bucket[bucket_of_module(m, *stir_scanner)];
                         const int first_ring = (m % num_axial_blocks) * rings_per_module;
-                        // coefficients are per ring, so average over the rings of this module
-                        float sum = 0.F;
-                        for (int r = 0; r < rings_per_module; ++r)
-                          sum += ecat8_norm_ptr->get_dead_time_efficiency(first_ring + r, rate);
-                        sat[m] = sum / rings_per_module;
+                        for (int el = 0; el < num_el; ++el)
+                          {
+                            const float eff = ecat8_norm_ptr->get_dead_time_efficiency(first_ring + el % rings_per_module, rate);
+                            for (int en = 0; en < num_en; ++en)
+                              sat[(static_cast<std::size_t>(m) * num_el + el) * num_en + en] = eff;
+                          }
                       }
                     petsird::DeadTimeTimeBlock dt_blk;
                     dt_blk.time_interval.start = singles_interval_start;
