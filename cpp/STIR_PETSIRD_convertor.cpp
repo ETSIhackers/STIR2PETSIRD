@@ -640,7 +640,7 @@ STIRPETSIRDConvertor::process_data()
   const int num_buckets = lm_data_ptr->get_scanner().get_num_singles_units();
   const int num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   std::vector<float> singles_per_bucket(num_buckets, 0.f);
-  std::vector<unsigned long> singles_nrecords(num_buckets, 0);
+  std::vector<unsigned long> num_singles_records(num_buckets, 0);
   int n_recorded = 0; // number of buckets that have a record in the current interval
   double singles_interval_start = 0.0;
 
@@ -706,7 +706,7 @@ STIRPETSIRDConvertor::process_data()
                     const int num_axial_blocks = stir_scanner->get_num_axial_blocks();
                     std::vector<float> rate_bucket(num_buckets);
                     for (int i = 0; i < num_buckets; ++i)
-                      rate_bucket[i] = singles_per_bucket[i] / singles_nrecords[i];
+                      rate_bucket[i] = singles_per_bucket[i] / num_singles_records[i];
 
                     // one alive fraction per detection bin (crystal x energy bin), as required by PETSIRD
                     const int num_el = static_cast<int>(
