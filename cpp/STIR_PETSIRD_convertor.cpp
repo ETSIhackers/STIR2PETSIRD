@@ -613,15 +613,17 @@ STIRPETSIRDConvertor::process_data()
   const auto num_types_of_modules = 1;
   // Pre-allocate various structures to have the correct size for num_types_of_modules
   // (We will still have to set descent values into each of these.)
-  // initialize_scanner_information_dimensions resets the energy information set in get_header(), so keep it
-  const auto energy_bin_edges = scanner_info.event_energy_bin_edges;
-  const auto energy_resolution = scanner_info.energy_resolution_at_511;
-  petsird_helpers::create::initialize_scanner_information_dimensions(
-      scanner_info, num_types_of_modules,
-      /* allocate_detection_bin_efficiencies = */ false,
-      /* allocate_module_pair_efficiencies = */ this->normalisation_sptr != nullptr);
-  scanner_info.event_energy_bin_edges = energy_bin_edges;
-  scanner_info.energy_resolution_at_511 = energy_resolution;
+  {
+    // initialize_scanner_information_dimensions resets the energy information set in get_header(), so keep it
+    const auto energy_bin_edges = scanner_info.event_energy_bin_edges;
+    const auto energy_resolution = scanner_info.energy_resolution_at_511;
+    petsird_helpers::create::initialize_scanner_information_dimensions(
+        scanner_info, num_types_of_modules,
+        /* allocate_detection_bin_efficiencies = */ false,
+        /* allocate_module_pair_efficiencies = */ this->normalisation_sptr != nullptr);
+    scanner_info.event_energy_bin_edges = energy_bin_edges;
+    scanner_info.energy_resolution_at_511 = energy_resolution;
+  }
   set_scanner_geometry(scanner_info, *stir_proj_data_info_sptr, *stir_exam_info_sptr);
   // singles are currently only available from ECAT8 list-mode data
   const bool is_ecat8_listmode = dynamic_cast<stir::ecat::CListRecordECAT8_32bit*>(&record) != nullptr;
@@ -642,15 +644,11 @@ STIRPETSIRDConvertor::process_data()
   int n_recorded = 0; // number of buckets that have a record in the current interval
   double singles_interval_start = 0.0;
 
-  if (is_ecat8_listmode)
-    {
-      // tell readers which singles unit (bucket) each module belongs to
-      scanner_info.module_singles_unit_idx_lu_ts.resize(num_types_of_modules);
-      scanner_info.module_singles_unit_idx_lu_ts[0].resize(num_modules);
-      for (int m = 0; m < num_modules; ++m)
-        scanner_info.module_singles_unit_idx_lu_ts[0][m]
-            = static_cast<petsird::SinglesUnitIdx>(bucket_of_module(m, *stir_scanner));
-    }
+  // tell readers which singles unit (bucket) each module belongs to
+  scanner_info.module_singles_unit_idx_lu_ts.resize(num_types_of_modules);
+  scanner_info.module_singles_unit_idx_lu_ts[0].resize(num_modules);
+  for (int m = 0; m < num_modules; ++m)
+    scanner_info.module_singles_unit_idx_lu_ts[0][m] = static_cast<petsird::SinglesUnitIdx>(bucket_of_module(m, *stir_scanner));
 
   if (this->normalisation_sptr)
     {
