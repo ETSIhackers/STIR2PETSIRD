@@ -733,7 +733,7 @@ STIRPETSIRDConvertor::process_data()
                   }
 
                 std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
-                std::fill(singles_nrecords.begin(), singles_nrecords.end(), 0UL);
+                std::fill(num_singles_records.begin(), num_singles_records.end(), 0UL);
                 n_recorded = 0;
               }
             if (has_singles)
@@ -794,13 +794,13 @@ STIRPETSIRDConvertor::process_data()
             }
         } // end of spatial event processing
       auto* ecat8_record = dynamic_cast<stir::ecat::CListRecordECAT8_32bit*>(&record);
-      if (ecat8_record != nullptr && !record.is_time() && !record.is_event() && ecat8_record->is_singles())
+      if (ecat8_record != nullptr && !record.is_time() && !record.is_event() && ecat8_record->is_accumulated_singles())
         {
-          const unsigned int ibck = ecat8_record->singles().get_bucket_index();
+          const unsigned int ibck = ecat8_record->accumulated_singles().get_bucket_index();
           if (ibck < static_cast<unsigned int>(num_buckets))
             {
-              singles_per_bucket[ibck] += ecat8_record->singles().get_singles_count();
-              if (singles_nrecords[ibck]++ == 0)
+              singles_per_bucket[ibck] += ecat8_record->accumulated_singles().get_singles_count();
+              if (num_singles_records[ibck]++ == 0)
                 ++n_recorded;
             }
         }
