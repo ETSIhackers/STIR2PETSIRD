@@ -1,3 +1,6 @@
+#include <algorithm>
+#include "stir/listmode/CListRecordECAT8_32bit.h"
+#include "stir/recon_buildblock/BinNormalisationFromECAT8.h"
 /*!
   \file
   \brief Implementation of class STIRPETSIRDConvertor
@@ -408,10 +411,12 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner, const Proj
       = petsird_helpers::create::construct_lower_triangular_or_rectangular_matrix<petsird::SGID>(num_modules, num_modules, true);
 
   int num_SGIDs = 0;
+  std::vector<std::pair<unsigned, unsigned>> first_module_pair_of_SGID; // first (mod1, mod2) that has this SGID
   {
     for (unsigned int mod1 = 0; mod1 < num_modules; ++mod1)
       {
-        for (unsigned int mod2 = 0; mod2 < num_modules; ++mod2)
+        // lower-triangular matrix (module-types are the same): only mod2 <= mod1 exists
+        for (unsigned int mod2 = 0; mod2 <= mod1; ++mod2)
           {
             // const auto z1 = mod1 % NZ;
             const auto a1 = mod1 / NZ;
@@ -423,6 +428,7 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner, const Proj
               }
             else
               {
+                first_module_pair_of_SGID.emplace_back(mod1, mod2);
                 module_pair_SGID_LUT[mod1][mod2] = num_SGIDs++;
               }
           }
@@ -437,26 +443,9 @@ get_detection_efficiencies_help(petsird::ScannerInformation& scanner, const Proj
   const auto num_energy_bins = 1U; // stir_exam_info.get_num_energy_bins();
   for (int SGID = 0; SGID < num_SGIDs; ++SGID)
     {
-      // extract first module_pair for this SGID.
-      unsigned mod0, mod1;
-      {
-        bool found = false;
-        for (mod0 = 0U; mod0 < num_modules && !found; ++mod0)
-          {
-            for (mod1 = 0U; mod1 > mod0; ++mod1) // lower-triangular as module-types are the same
-              {
-                if (module_pair_SGID_LUT[mod0][mod1] == SGID)
-                  {
-                    found = true;
-                  }
-                break;
-              }
-          }
-        if (!found)
-          {
-            stir::error(stir::format("internal error: no module-pair with SGID {}", SGID));
-          }
-      }
+      // first module pair for this SGID (mod0 >= mod1, as the matrix is lower-triangular)
+      const unsigned mod0 = first_module_pair_of_SGID[SGID].first;
+      const unsigned mod1 = first_module_pair_of_SGID[SGID].second;
 
       petsird::ModulePairEfficiencies module_pair_efficiencies;
       module_pair_efficiencies.values = petsird_helpers::create::construct_rectangular_matrix<float>(
@@ -564,6 +553,20 @@ get_det_pos_pair_help(const stir::ListEvent& event, const ProjDataInfoT& proj_da
   return dp_pair;
 }
 
+//! Index of the singles unit (bucket) that contains the first crystal of a PETSIRD module
+/*! Uses the same bucket numbering as the singles records (transaxial + num_transaxial_singles_units * axial)
+    and the same module numbering as get_PETSIRD_id_from_stir_det_pos. */
+static int
+bucket_of_module(const int module, const stir::Scanner& sc)
+{
+  const int xtals_per_bucket_trans = sc.get_num_transaxial_crystals_per_singles_unit();
+  const int xtals_per_bucket_ax = sc.get_num_axial_crystals_per_singles_unit();
+  const int n_ax_blk = sc.get_num_axial_blocks();
+  const int ax_mod = module % n_ax_blk, tang_mod = module / n_ax_blk;
+  const int bt = (tang_mod * sc.get_num_transaxial_crystals_per_block()) / xtals_per_bucket_trans;
+  const int ba = (ax_mod * sc.get_num_axial_crystals_per_block()) / xtals_per_bucket_ax;
+  return bt + sc.get_num_transaxial_singles_units() * ba;
+}
 void
 STIRPETSIRDConvertor::process_data()
 {
@@ -610,11 +613,42 @@ STIRPETSIRDConvertor::process_data()
   const auto num_types_of_modules = 1;
   // Pre-allocate various structures to have the correct size for num_types_of_modules
   // (We will still have to set descent values into each of these.)
-  petsird_helpers::create::initialize_scanner_information_dimensions(
-      scanner_info, num_types_of_modules,
-      /* allocate_detection_bin_efficiencies = */ false,
-      /* allocate_module_pair_efficiencies = */ this->normalisation_sptr != nullptr);
+  {
+    // initialize_scanner_information_dimensions resets the energy information set in get_header(), so keep it
+    const auto energy_bin_edges = scanner_info.event_energy_bin_edges;
+    const auto energy_resolution = scanner_info.energy_resolution_at_511;
+    petsird_helpers::create::initialize_scanner_information_dimensions(
+        scanner_info, num_types_of_modules,
+        /* allocate_detection_bin_efficiencies = */ false,
+        /* allocate_module_pair_efficiencies = */ this->normalisation_sptr != nullptr);
+    scanner_info.event_energy_bin_edges = energy_bin_edges;
+    scanner_info.energy_resolution_at_511 = energy_resolution;
+  }
   set_scanner_geometry(scanner_info, *stir_proj_data_info_sptr, *stir_exam_info_sptr);
+  // singles are currently only available from ECAT8 list-mode data
+  const bool is_ecat8_listmode = dynamic_cast<stir::ecat::CListRecordECAT8_32bit*>(&record) != nullptr;
+  if (is_ecat8_listmode)
+    {
+      scanner_info.singles_histogram_level = petsird::SinglesHistogramLevelType::kModule;
+      scanner_info.singles_histogram_energy_bin_edges = scanner_info.event_energy_bin_edges;
+    }
+  // dead-time information can currently only come from an ECAT8 normalisation
+  const auto* ecat8_norm_ptr = dynamic_cast<const stir::ecat::BinNormalisationFromECAT8*>(this->normalisation_sptr.get());
+  const bool write_dead_time = ecat8_norm_ptr != nullptr;
+
+  // Singles accumulator — num_buckets read dynamically from scanner geometry
+  const int num_buckets = lm_data_ptr->get_scanner().get_num_singles_units();
+  const int num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
+  std::vector<float> singles_per_bucket(num_buckets, 0.f);
+  std::vector<unsigned long> num_singles_records(num_buckets, 0);
+  int n_recorded = 0; // number of buckets that have a record in the current interval
+  double singles_interval_start = 0.0;
+
+  // tell readers which singles unit (bucket) each module belongs to
+  scanner_info.module_singles_unit_idx_lu_ts.resize(num_types_of_modules);
+  scanner_info.module_singles_unit_idx_lu_ts[0].resize(num_modules);
+  for (int m = 0; m < num_modules; ++m)
+    scanner_info.module_singles_unit_idx_lu_ts[0][m] = static_cast<petsird::SinglesUnitIdx>(bucket_of_module(m, *stir_scanner));
 
   if (this->normalisation_sptr)
     {
@@ -652,6 +686,59 @@ STIRPETSIRDConvertor::process_data()
           event_time_blk.time_interval.start = current_time;
           prompts_this_blk.clear();
           delayeds_this_blk.clear();
+          // Write singles histogram block for this time interval
+          {
+            const bool has_singles = (n_recorded >= num_buckets);
+            if (has_singles)
+              {
+                petsird::SinglesHistogramTimeBlock singles_blk;
+                singles_blk.time_interval.start = singles_interval_start;
+                singles_blk.time_interval.stop = current_time;
+                singles_blk.singles_per_singles_unit_histogram.resize(num_buckets);
+                for (int i = 0; i < num_buckets; ++i)
+                  singles_blk.singles_per_singles_unit_histogram[i] = { static_cast<uint64_t>(singles_per_bucket[i]) };
+                writer.WriteTimeBlocks(petsird::TimeBlock(singles_blk));
+                // write DeadTimeTimeBlock with pre-computed alive fractions
+                if (write_dead_time)
+                  {
+                    // rate per bucket (counts per second, as in the singles records)
+                    const int rings_per_module = stir_scanner->get_num_axial_crystals_per_block();
+                    const int num_axial_blocks = stir_scanner->get_num_axial_blocks();
+                    std::vector<float> rate_bucket(num_buckets);
+                    for (int i = 0; i < num_buckets; ++i)
+                      rate_bucket[i] = singles_per_bucket[i] / num_singles_records[i];
+
+                    // one alive fraction per detection bin (crystal x energy bin), as required by PETSIRD
+                    const int num_el = static_cast<int>(
+                        header_info.scanner.scanner_geometry.replicated_modules[0].object.detecting_elements.transforms.size());
+                    const int num_en = static_cast<int>(header_info.scanner.event_energy_bin_edges[0].NumberOfBins());
+                    petsird::SinglesAliveTimeFractions sat;
+                    sat.resize({ static_cast<std::size_t>(num_modules) * num_el * num_en });
+                    for (int m = 0; m < num_modules; ++m)
+                      {
+                        const float rate = rate_bucket[bucket_of_module(m, *stir_scanner)];
+                        const int first_ring = (m % num_axial_blocks) * rings_per_module;
+                        for (int el = 0; el < num_el; ++el)
+                          {
+                            const float eff = ecat8_norm_ptr->get_dead_time_efficiency(first_ring + el % rings_per_module, rate);
+                            for (int en = 0; en < num_en; ++en)
+                              sat[(static_cast<std::size_t>(m) * num_el + el) * num_en + en] = eff;
+                          }
+                      }
+                    petsird::DeadTimeTimeBlock dt_blk;
+                    dt_blk.time_interval.start = singles_interval_start;
+                    dt_blk.time_interval.stop = current_time;
+                    dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(sat);
+                    writer.WriteTimeBlocks(petsird::TimeBlock(dt_blk));
+                  }
+
+                std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
+                std::fill(num_singles_records.begin(), num_singles_records.end(), 0UL);
+                n_recorded = 0;
+              }
+            if (has_singles)
+              singles_interval_start = current_time;
+          }
         }
       if (record.is_event())
         {
@@ -706,6 +793,17 @@ STIRPETSIRDConvertor::process_data()
               ++num_delayed_events;
             }
         } // end of spatial event processing
+      auto* ecat8_record = dynamic_cast<stir::ecat::CListRecordECAT8_32bit*>(&record);
+      if (ecat8_record != nullptr && !record.is_time() && !record.is_event() && ecat8_record->is_accumulated_singles())
+        {
+          const unsigned int ibck = ecat8_record->accumulated_singles().get_bucket_index();
+          if (ibck < static_cast<unsigned int>(num_buckets))
+            {
+              singles_per_bucket[ibck] += ecat8_record->accumulated_singles().get_singles_count();
+              if (num_singles_records[ibck]++ == 0)
+                ++n_recorded;
+            }
+        }
       if (num_events % 100000 == 0)
         {
           std::cout << num_events << std::endl;
