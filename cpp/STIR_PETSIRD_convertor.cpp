@@ -728,7 +728,7 @@ STIRPETSIRDConvertor::process_data()
                     petsird::DeadTimeTimeBlock dt_blk;
                     dt_blk.time_interval.start = singles_interval_start;
                     dt_blk.time_interval.stop = current_time;
-                    dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(sat);
+                    dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(std::move(sat));
                     writer.WriteTimeBlocks(petsird::TimeBlock(dt_blk));
                   }
 
