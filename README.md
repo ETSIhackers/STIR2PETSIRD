@@ -9,7 +9,7 @@ is working towards establishing a standard for PET Raw Data, called PETSIRD ("PE
 More information is on https://github.com/ETSInitiative/PETSIRD.
 
 ## Status
-This is still work in progress, but does seem to work, including normalisation. Singles abd dead-time info is
+This is still work in progress, but does seem to work, including normalisation. Singles and dead-time info is
 currently only passed on for ECAT8 list-mode data (Siemens mMR).
 
 ## Installation
