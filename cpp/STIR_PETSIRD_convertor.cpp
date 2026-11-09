@@ -640,7 +640,6 @@ STIRPETSIRDConvertor::process_data()
   const int num_buckets = lm_data_ptr->get_scanner().get_num_singles_units();
   const int num_modules = stir_scanner->get_num_transaxial_blocks() * stir_scanner->get_num_axial_blocks();
   std::vector<float> singles_per_bucket(num_buckets, 0.f);
-  std::vector<unsigned long> num_singles_records(num_buckets, 0);
   int n_recorded = 0; // number of buckets that have a record in the current interval
   double singles_interval_start = 0.0;
 
@@ -706,7 +705,7 @@ STIRPETSIRDConvertor::process_data()
                     const int num_axial_blocks = stir_scanner->get_num_axial_blocks();
                     std::vector<float> rate_bucket(num_buckets);
                     for (int i = 0; i < num_buckets; ++i)
-                      rate_bucket[i] = singles_per_bucket[i] / num_singles_records[i];
+                      rate_bucket[i] = singles_per_bucket[i];
 
                     // one alive fraction per detection bin (crystal x energy bin), as required by PETSIRD
                     const int num_el = static_cast<int>(
@@ -728,12 +727,11 @@ STIRPETSIRDConvertor::process_data()
                     petsird::DeadTimeTimeBlock dt_blk;
                     dt_blk.time_interval.start = singles_interval_start;
                     dt_blk.time_interval.stop = current_time;
-                    dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(sat);
+                    dt_blk.alive_time_fractions.singles_alive_time_fractions.push_back(std::move(sat));
                     writer.WriteTimeBlocks(petsird::TimeBlock(dt_blk));
                   }
 
                 std::fill(singles_per_bucket.begin(), singles_per_bucket.end(), 0.f);
-                std::fill(num_singles_records.begin(), num_singles_records.end(), 0UL);
                 n_recorded = 0;
               }
             if (has_singles)
@@ -799,9 +797,8 @@ STIRPETSIRDConvertor::process_data()
           const unsigned int ibck = ecat8_record->accumulated_singles().get_bucket_index();
           if (ibck < static_cast<unsigned int>(num_buckets))
             {
-              singles_per_bucket[ibck] += ecat8_record->accumulated_singles().get_singles_count();
-              if (num_singles_records[ibck]++ == 0)
-                ++n_recorded;
+              singles_per_bucket[ibck] = ecat8_record->accumulated_singles().get_singles_count();
+              ++n_recorded;
             }
         }
       if (num_events % 100000 == 0)
